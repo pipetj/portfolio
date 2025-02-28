@@ -13,9 +13,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(authorize -> authorize
-                .anyRequest().permitAll());
+            .csrf(csrf -> csrf.disable())  // Désactive la protection CSRF (à activer en prod)
+            .authorizeHttpRequests(auth -> auth
+                .anyRequest().permitAll())  // Autorise toutes les requêtes
+            .formLogin(login -> login.disable())  // Désactive le formulaire de login
+            .httpBasic(basic -> basic.disable()); // Désactive l'authentification basique
         
         return http.build();
     }
