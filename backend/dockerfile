@@ -1,0 +1,14 @@
+# Utilise une image officielle de Java JDK 17
+FROM eclipse-temurin:17-jdk
+
+# Définit le répertoire de travail
+WORKDIR /app
+
+# Copie le fichier JAR de ton application dans le conteneur
+COPY target/*.jar app.jar
+
+# Expose le port 8080 (ou un autre si besoin)
+EXPOSE 8080
+
+# Commande pour démarrer l'application
+CMD ["java", "-jar", "app.jar"]
