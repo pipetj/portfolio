@@ -1,13 +1,24 @@
-# Utilise une image officielle de Java JDK 17
-FROM eclipse-temurin:17-jdk
+# Utilise une image Java officielle
+FROM eclipse-temurin:17-jdk AS build
 
 # Définit le répertoire de travail
 WORKDIR /app
 
-# Copie le fichier JAR de ton application dans le conteneur
-COPY target/*.jar app.jar
+# Copie tout le projet dans le conteneur
+COPY . .
 
-# Expose le port 8080 (ou un autre si besoin)
+# Compile le projet avec Maven
+RUN ./mvnw clean package -DskipTests
+
+# Étape finale : création de l'image d'exécution
+FROM eclipse-temurin:17-jdk
+
+WORKDIR /app
+
+# Copie le fichier JAR généré depuis l'étape de build
+COPY --from=build /app/target/*.jar app.jar
+
+# Expose le port 8080
 EXPOSE 8080
 
 # Commande pour démarrer l'application
