@@ -9,14 +9,18 @@ COPY .mvn .mvn
 COPY mvnw .
 COPY pom.xml .
 
-# Donner les permissions d'exécution au wrapper Maven
-RUN chmod +x mvnw
+# Correction du problème de permissions et des fins de ligne
+RUN chmod +x ./mvnw && \
+    sed -i 's/\r$//' ./mvnw
 
 # Télécharger les dépendances (meilleure gestion du cache)
 RUN ./mvnw dependency:go-offline
 
 # Copier tout le projet
 COPY . .
+
+# S'assurer que mvnw a toujours les permissions après la copie complète
+RUN chmod +x ./mvnw
 
 # Compiler le projet en mode production
 RUN ./mvnw clean package -DskipTests
