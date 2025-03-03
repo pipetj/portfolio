@@ -1,43 +1,28 @@
 # Étape 1 : Construction de l'application avec Maven
-FROM eclipse-temurin:17-jdk AS build
+FROM maven:3.9-eclipse-temurin-17 AS build
 
 # Définir le répertoire de travail
 WORKDIR /app
 
-# Copier uniquement les fichiers nécessaires pour récupérer les dépendances
-COPY .mvn .mvn
-COPY mvnw .
-COPY pom.xml .
-
-# Correction du problème de permissions et des fins de ligne
-RUN chmod +x ./mvnw && \
-    sed -i 's/\r$//' ./mvnw
-
-# Télécharger les dépendances (meilleure gestion du cache)
-RUN ./mvnw dependency:go-offline
-
-# Copier tout le projet
+# Copier le projet
 COPY . .
 
-# S'assurer que mvnw a toujours les permissions après la copie complète
-RUN chmod +x ./mvnw
-
 # Compiler le projet en mode production
-RUN ./mvnw clean package -DskipTests
+RUN mvn clean package -DskipTests
 
 # Étape 2 : Exécution de l'application avec une image plus légère
 FROM eclipse-temurin:17-jre
 
 WORKDIR /app
 
-# Définir les variables d'environnement (Render les injecte automatiquement)
+# Définir les variables d'environnement
 ENV SPRING_PROFILES_ACTIVE=production
 
 # Copier uniquement le JAR généré
 COPY --from=build /app/target/*.jar app.jar
 
 # Exposer le port par défaut de Render
-EXPOSE ${PORT}
+EXPOSE 8080
 
 # Lancer l'application en spécifiant explicitement le port
-ENTRYPOINT ["java", "-Dserver.port=${PORT}", "-Dserver.address=0.0.0.0", "-jar", "app.jar"]
+CMD java -Dserver.port=$PORT -Dserver.address=0.0.0.0 -jar app.jar
