@@ -1,28 +1,39 @@
+# Étape 1 : Construction de l'application avec Maven
 FROM eclipse-temurin:17-jdk AS build
 
-# Définit le répertoire de travail
+# Définir le répertoire de travail
 WORKDIR /app
 
-# Copie tout le projet dans le conteneur
-COPY . .
+# Copier uniquement les fichiers nécessaires pour récupérer les dépendances
+COPY .mvn .mvn
+COPY mvnw .
+COPY pom.xml .
 
-# Assurez-vous que le script mvnw est exécutable
+# Donner les permissions d'exécution au wrapper Maven
 RUN chmod +x mvnw
 
-# Compile le projet avec Maven
+# Télécharger les dépendances (meilleure gestion du cache)
+RUN ./mvnw dependency:go-offline
+
+# Copier tout le projet
+COPY . .
+
+# Compiler le projet en mode production
 RUN ./mvnw clean package -DskipTests
 
-# Étape finale : création de l'image d'exécution
-FROM eclipse-temurin:17-jdk
+# Étape 2 : Exécution de l'application avec une image plus légère
+FROM eclipse-temurin:17-jre
 
 WORKDIR /app
 
-# Copie le fichier JAR généré depuis l'étape de build
+# Définir les variables d'environnement (Render les injecte automatiquement)
+ENV PORT=8080
+
+# Copier uniquement le JAR généré
 COPY --from=build /app/target/*.jar app.jar
 
-# Expose le port 8080
+# Exposer le port (Render l'assigne dynamiquement)
 EXPOSE 8080
 
-# Commande pour démarrer l'application
-CMD ["sh", "-c", "java -jar app.jar --server.port=${PORT}"]
-
+# Lancer l'application
+ENTRYPOINT ["java", "-jar", "app.jar"]
