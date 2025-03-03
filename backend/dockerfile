@@ -31,13 +31,13 @@ FROM eclipse-temurin:17-jre
 WORKDIR /app
 
 # Définir les variables d'environnement (Render les injecte automatiquement)
-ENV PORT=8080
+ENV SPRING_PROFILES_ACTIVE=production
 
 # Copier uniquement le JAR généré
 COPY --from=build /app/target/*.jar app.jar
 
-# Exposer le port (Render l'assigne dynamiquement)
-EXPOSE 8080
+# Exposer le port par défaut de Render
+EXPOSE ${PORT}
 
-# Lancer l'application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Lancer l'application en spécifiant explicitement le port
+ENTRYPOINT ["java", "-Dserver.port=${PORT}", "-Dserver.address=0.0.0.0", "-jar", "app.jar"]
