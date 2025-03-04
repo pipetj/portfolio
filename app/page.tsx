@@ -6,7 +6,7 @@ export default function Home() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/message") // Appel à ton backend Spring Boot
+    fetch("https://portfolio-spring-boot-backend.onrender.com/api/message") // Appel à ton backend Spring Boot
       .then((response) => response.text())
       .then((data) => setMessage(data))
       .catch((error) => console.error("Erreur lors de la requête:", error));
