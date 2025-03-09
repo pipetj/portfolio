@@ -1,15 +1,14 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../utils/supabaseClient';
+"use client";
 
-const ProjectsPage = () => {
+import { useEffect, useState } from 'react';
+import { supabase } from '@/utils/supabaseClient';
+
+export default function ProjectsPage() {
   const [projects, setProjects] = useState([]);
 
   useEffect(() => {
     const fetchProjects = async () => {
-      const { data, error } = await supabase
-        .from('portfolio') 
-        .select('*');
-
+      const { data, error } = await supabase.from('portfolio').select('*');
       if (error) {
         console.error("Erreur de récupération des projets:", error);
       } else {
@@ -33,6 +32,4 @@ const ProjectsPage = () => {
       </ul>
     </div>
   );
-};
-
-export default ProjectsPage;
+}

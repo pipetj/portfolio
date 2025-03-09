@@ -10,7 +10,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/auth")
-@CrossOrigin(origins = "http://localhost:3000") // Autorise Next.js
+@CrossOrigin(origins = "*") // Autorise Next.js
 public class AuthController {
 
     private final UserService userService;
