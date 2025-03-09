@@ -2,11 +2,29 @@
 
 import { useEffect, useState } from "react";
 
+// Définir une interface pour les fenêtres
+interface WindowItem {
+  id: number;
+  type: string; // Peut être 'projects' ou 'project-<id>'
+  minimized: boolean;
+  maximized?: boolean; // État maximisé partagé entre Projects et Details
+  linkedDetailId?: number; // Pour lier Projects à Details
+}
+
+// Définir une interface pour les projets
+interface Project {
+  id: string;
+  title: string;
+  description: string;
+  created_at: string;
+  user_id: string;
+}
+
 export default function LoginPage() {
-  const [stage, setStage] = useState("boot");
-  const [loading, setLoading] = useState(false);
-  const [windows, setWindows] = useState([]);
-  const [projects, setProjects] = useState([]);
+  const [stage, setStage] = useState<"boot" | "login" | "loginAnimation" | "desktop">("boot");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [windows, setWindows] = useState<WindowItem[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const username = "Pipet Jordan";
 
   // Boot sequence
@@ -20,20 +38,21 @@ export default function LoginPage() {
   useEffect(() => {
     if (stage === "desktop") {
       console.log("Fetching projects from /portfolio...");
-      fetch('https://portfolio-spring-boot-backend.onrender.com/portfolio', {
+      fetch('/portfolio', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       })
         .then(res => {
-          console.log("Response received:", res);
-          return res.text(); // Utilisez .text() car .json() ne fonctionne pas avec no-cors
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
         })
-        .then(data => {
-          console.log("Raw data:", data);
-          // Essayez de parser manuellement si possible, mais avec no-cors, les données peuvent être limitées
-          setProjects(data ? JSON.parse(data) : []);
+        .then((data: Project[]) => {
+          console.log("Projects fetched successfully:", data);
+          setProjects(data);
         })
         .catch(err => {
           console.error("Error fetching projects:", err);
@@ -54,18 +73,56 @@ export default function LoginPage() {
   };
 
   // Window management
-  const openWindow = (type) => {
-    setWindows(prev => [...prev, { id: Date.now(), type, minimized: false }]);
+  const openWindow = (type: string, linkedDetailId?: number) => {
+    setWindows(prev => [...prev, { id: Date.now(), type, minimized: false, maximized: false, linkedDetailId }]);
   };
 
-  const closeWindow = (id) => {
-    setWindows(prev => prev.filter(w => w.id !== id));
+  const closeWindow = (id: number) => {
+    setWindows(prev => {
+      const windowToClose = prev.find(w => w.id === id);
+      if (windowToClose?.type === 'projects') {
+        // Si on ferme "Projects", fermer aussi le "Details" lié
+        return prev.filter(w => w.id !== id && w.linkedDetailId !== id);
+      }
+      return prev.filter(w => w.id !== id);
+    });
   };
 
-  const toggleMinimize = (id) => {
-    setWindows(prev => prev.map(w => 
-      w.id === id ? { ...w, minimized: !w.minimized } : w
-    ));
+  const toggleMinimize = (id: number) => {
+    setWindows(prev => {
+      const windowToToggle = prev.find(w => w.id === id);
+      if (windowToToggle?.type === 'projects') {
+        // Si on minimise "Projects", minimiser aussi le "Details" lié
+        return prev.map(w => 
+          w.id === id || w.linkedDetailId === id 
+            ? { ...w, minimized: !w.minimized } 
+            : w
+        );
+      }
+      return prev.map(w => w.id === id ? { ...w, minimized: !w.minimized } : w);
+    });
+  };
+
+  const toggleMaximize = (id: number) => {
+    setWindows(prev => {
+      const windowToToggle = prev.find(w => w.id === id);
+      if (windowToToggle?.type === 'projects') {
+        // Si on maximise "Projects", maximiser aussi le "Details" lié
+        return prev.map(w => 
+          w.id === id || w.linkedDetailId === id 
+            ? { ...w, maximized: !w.maximized } 
+            : w
+        );
+      }
+      return prev; // Ne rien faire si ce n'est pas "Projects"
+    });
+  };
+
+  const openProjectDetails = (projectId: string, projectsWindowId: number) => {
+    const existingDetail = windows.find(w => w.type === `project-${projectId}` && w.linkedDetailId === projectsWindowId);
+    if (!existingDetail) {
+      openWindow(`project-${projectId}`, projectsWindowId);
+    }
   };
 
   // Boot Screen
@@ -456,7 +513,7 @@ export default function LoginPage() {
           window.type === 'projects' ? (
             <div 
               key={window.id}
-              className="window"
+              className={`window ${window.maximized ? 'maximized' : ''}`}
             >
               <div className="window-header">
                 <span>Projects - Pipet Jordan</span>
@@ -464,6 +521,11 @@ export default function LoginPage() {
                   <button onClick={() => toggleMinimize(window.id)} className="control minimize">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M19 13H5v-2h14v2z" />
+                    </svg>
+                  </button>
+                  <button onClick={() => toggleMaximize(window.id)} className="control maximize">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                      <path d={window.maximized ? "M5 16h14V8H5v8zm14 2H5a2 2 0 01-2-2V8a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2z" : "M5 19h14V5H5v14zm14 2H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z"} />
                     </svg>
                   </button>
                   <button onClick={() => closeWindow(window.id)} className="control close">
@@ -476,16 +538,20 @@ export default function LoginPage() {
               <div className="window-content wiki-style">
                 <h1>Projects</h1>
                 {projects.length > 0 ? (
-                  projects.map((project, index) => (
-                    <div key={index} className="project-entry">
-                      <h2>{project.title || "No title"}</h2>
-                      <p>{project.description || "No description"}</p>
-                      <button 
-                        onClick={() => openWindow(`project-${project.id || index}`)}
-                        className="details-button"
-                      >
-                        View Details
-                      </button>
+                  projects.map((project) => (
+                    <div key={project.id} className="project-entry">
+                      <div className="project-content">
+                        <div className="project-text">
+                          <h2>{project.title}</h2>
+                          <p>{project.description}</p>
+                        </div>
+                        <button 
+                          onClick={() => openProjectDetails(project.id, window.id)}
+                          className="details-button"
+                        >
+                          View Details
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -496,25 +562,20 @@ export default function LoginPage() {
           ) : (
             <div 
               key={window.id}
-              className="window detail-window"
+              className={`window detail-window ${windows.find(w => w.id === window.linkedDetailId)?.maximized ? 'maximized' : ''}`}
             >
               <div className="window-header">
-                <span>Project Details</span>
+                <span>Project Details - {projects.find(p => `project-${p.id}` === window.type)?.title || 'Unknown'}</span>
                 <div className="window-controls">
-                  <button onClick={() => toggleMinimize(window.id)} className="control minimize">
+                  <button onClick={() => closeWindow(window.id)} className="control back">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19 13H5v-2h14v2z" />
-                    </svg>
-                  </button>
-                  <button onClick={() => closeWindow(window.id)} className="control close">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                      <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
                     </svg>
                   </button>
                 </div>
               </div>
               <div className="window-content">
-                {/* Contenu vierge pour personnalisation future */}
+                <p>Details for project will be added here later.</p>
               </div>
             </div>
           )
@@ -528,18 +589,20 @@ export default function LoginPage() {
           </svg>
           Start
         </button>
-        {windows.map(window => (
-          <div 
-            key={window.id}
-            className={`taskbar-item ${window.minimized ? 'minimized' : 'active'}`}
-            onClick={() => toggleMinimize(window.id)}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            {window.type.startsWith('project-') ? 'Project Details' : 'Projects'}
-          </div>
-        ))}
+        {windows
+          .filter(window => window.type === 'projects')
+          .map(window => (
+            <div 
+              key={window.id}
+              className={`taskbar-item ${window.minimized ? 'minimized' : 'active'}`}
+              onClick={() => toggleMinimize(window.id)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Projects
+            </div>
+          ))}
         <div className="system-tray">
           <span>{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
         </div>
@@ -623,10 +686,10 @@ export default function LoginPage() {
           position: absolute;
           width: 80%;
           max-width: 64rem;
-          min-height: 400px;
+          min-height: 600px;
           background: rgba(255,255,255,0.1);
           backdrop-filter: blur(6px);
-          border-radius: 0.25rem; /* Plus carré pour style Windows */
+          border-radius: 0.25rem;
           box-shadow: 0 4px 8px rgba(0,0,0,0.2);
           border: 1px solid #2d2d2d;
           overflow: hidden;
@@ -634,13 +697,23 @@ export default function LoginPage() {
           top: 50%;
           transform: translate(-50%, -50%);
           z-index: 10;
+          transition: all 0.3s ease;
+        }
+        .window.maximized {
+          width: 100%; /* Toute la largeur */
+          height: calc(100vh - 3.5rem); /* Toute la hauteur sauf la barre des tâches */
+          top: 0;
+          left: 0;
+          transform: none;
+          border-radius: 0;
         }
         .detail-window {
           background: white;
           border: 1px solid #2d2d2d;
+          z-index: 11; /* Au-dessus de la fenêtre Projects */
         }
         .window-header {
-          background: #e1e1e1; /* Gris clair style Windows */
+          background: #e1e1e1;
           padding: 0.5rem 0.75rem;
           display: flex;
           align-items: center;
@@ -674,6 +747,9 @@ export default function LoginPage() {
           height: 1rem;
           color: #000;
         }
+        .maximize:hover {
+          background: #d0d0d0;
+        }
         .close {
           background: #c42b1c;
           border-color: #a02316;
@@ -684,15 +760,20 @@ export default function LoginPage() {
         .close svg {
           color: white;
         }
+        .back:hover {
+          background: #d0d0d0;
+        }
         .window-content {
           padding: 1.5rem;
-          height: calc(400px - 2.5rem);
+          height: calc(100% - 2.5rem);
+          overflow-y: auto;
         }
         .wiki-style {
           background: linear-gradient(to bottom right, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
           border: 1px solid rgba(255,255,255,0.1);
           border-radius: 0.25rem;
           padding: 1.25rem;
+          min-height: 100%;
         }
         .wiki-style h1 {
           font-size: 1.5rem;
@@ -710,6 +791,15 @@ export default function LoginPage() {
         .project-entry:last-child {
           border-bottom: none;
         }
+        .project-content {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 1rem;
+        }
+        .project-text {
+          flex: 1;
+        }
         .project-entry h2 {
           font-size: 1.25rem;
           color: #60a5fa;
@@ -718,7 +808,7 @@ export default function LoginPage() {
         }
         .project-entry p {
           color: rgba(255,255,255,0.9);
-          margin-bottom: 0.75rem;
+          margin-bottom: 0;
         }
         .details-button {
           padding: 0.5rem 1rem;
@@ -726,6 +816,7 @@ export default function LoginPage() {
           color: white;
           border-radius: 0.25rem;
           transition: background-color 0.3s;
+          white-space: nowrap;
         }
         .details-button:hover {
           background: #1d4ed8;
