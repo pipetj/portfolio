@@ -4,7 +4,7 @@ import { useState } from "react";
 
 export default function LoginPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const username = "VotreNom"; // Remplacez par votre nom d'utilisateur
+  const username = "Pipet Jordan"; 
 
   const handleLogin = () => {
     setIsLoggedIn(true);
