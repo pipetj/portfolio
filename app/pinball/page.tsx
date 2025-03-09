@@ -60,7 +60,7 @@ export default function Flipper() {
     let prevState: PinballState | null = null;
     let animationFrame = 0;
     
-    wsRef.current = new WebSocket('wss://portfolio-spring-boot-backend.onrender.com/game');
+    wsRef.current = new WebSocket('wss://portfolio-spring-boot-backend.onrender.com/game'); //wss://portfolio-spring-boot-backend.onrender.com/game
 
     wsRef.current.onmessage = (event: MessageEvent) => {
       const gameState: PinballState = JSON.parse(event.data);

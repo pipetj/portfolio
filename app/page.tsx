@@ -103,9 +103,11 @@ export default function Home() {
         </div>
         
         {/* Bouton projets */}
+        <a href="/login">
         <button className="mt-12 relative px-8 py-4 overflow-hidden rounded-lg bg-gradient-to-r from-blue-500 to-teal-500 text-white font-bold text-lg hover:shadow-lg hover:shadow-blue-500/20 hover:scale-105 transition-all duration-300">
           Voir mes projets
         </button>
+        </a>
       </main>
       
       {/* Footer */}
