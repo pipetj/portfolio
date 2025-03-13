@@ -1,25 +1,21 @@
 package com.example.demo.model;
 
 public class PinballState {
-    // Propriétés de la balle
-    private double ballX = 775;  
-    private double ballY = 500;  
+    private double ballX = 760;  // Position initiale ajustée pour Phaser
+    private double ballY = 550;
     private double ballSpeedX = 0;
     private double ballSpeedY = 0;
-    
-    // État des flippers
+
     private boolean leftFlipperUp = false;
     private boolean rightFlipperUp = false;
     private boolean upperLeftFlipperUp = false;
-    
-    // Propriétés de jeu
+
     private int score = 0;
     private boolean isLaunching = true;
-    
-    // États des éléments du terrain
-    private boolean[] bumpersHit = new boolean[3]; // 3 bumpers
-    private boolean[] fixedTargetsHit = new boolean[2]; // 2 cibles fixes
-    private boolean[] dropTargetsHit = new boolean[3]; // 3 cibles tombantes
+
+    private boolean[] bumpersHit = new boolean[3];
+    private boolean[] fixedTargetsHit = new boolean[2];
+    private boolean[] dropTargetsHit = new boolean[3];
     private boolean holeActive = false;
     private int spinnerRotation = 0;
     private boolean stopperActive = false;

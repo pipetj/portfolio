@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 300">
+  <!-- Cadre de la zone du plunger -->
+  <rect x="5" y="5" width="70" height="290" rx="5" ry="5" fill="#111133" stroke="#3344AA" stroke-width="2"/>
+  
+  <!-- Rail du plunger -->
+  <rect x="15" y="80" width="50" height="210" fill="#222244" stroke="#3355BB" stroke-width="1"/>
+  
+  <!-- Graduations de puissance -->
+  <line x1="15" y1="100" x2="25" y2="100" stroke="#5577DD" stroke-width="2"/>
+  <line x1="15" y1="130" x2="25" y2="130" stroke="#5577DD" stroke-width="2"/>
+  <line x1="15" y1="160" x2="25" y2="160" stroke="#5577DD" stroke-width="2"/>
+  <line x1="15" y1="190" x2="25" y2="190" stroke="#5577DD" stroke-width="2"/>
+  <line x1="15" y1="220" x2="25" y2="220" stroke="#5577DD" stroke-width="2"/>
+  <line x1="15" y1="250" x2="25" y2="250" stroke="#5577DD" stroke-width="2"/>
+  
+  <!-- Corps du plunger -->
+  <rect x="20" y="30" width="40" height="60" rx="5" ry="5" fill="url(#plungerBodyGradient)" stroke="#DD4477" stroke-width="2"/>
+  
+  <!-- Poignée du plunger -->
+  <ellipse cx="40" cy="30" rx="20" ry="12" fill="url(#plungerKnobGradient)" stroke="#FF3366" stroke-width="2"/>
+  
+  <!-- Ressort visible -->
+  <path d="M30,90 L30,95 L50,95 L50,100 L30,100 L30,105 L50,105 L50,110 L30,110 L30,115 L50,115" 
+    fill="none" stroke="#AAAACC" stroke-width="2"/>
+  
+  <!-- Reflets lumineux -->
+  <ellipse cx="35" cy="25" rx="4" ry="2" fill="white" opacity="0.7"/>
+  <ellipse cx="40" cy="28" rx="2" ry="1" fill="white" opacity="0.5"/>
+  
+  <!-- Détails métalliques -->
+  <rect x="25" y="80" width="30" height="5" fill="#4455AA" stroke="#6677CC" stroke-width="1"/>
+  
+  <!-- Ombre sous le plunger -->
+  <rect x="20" y="90" width="40" height="10" fill="#000022" opacity="0.3"/>
+  
+  <!-- Dégradés -->
+  <defs>
+    <linearGradient id="plungerBodyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF4488;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#EE3377;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DD2266;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="plungerKnobGradient" cx="40%" cy="40%">
+      <stop offset="0%" style="stop-color:#FF77AA;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#FF4488;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EE3377;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+</svg>
