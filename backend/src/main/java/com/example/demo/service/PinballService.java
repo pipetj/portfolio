@@ -7,30 +7,32 @@ import org.springframework.stereotype.Service;
 public class PinballService {
     private PinballState gameState = new PinballState();
 
-    // Constantes physiques pour 60 FPS et 1280x800px
-    private static final double GRAVITY = 600;
+    // Constantes physiques alignées avec Phaser (60 FPS)
+    private static final double GRAVITY = 400;
     private static final double FRICTION = 0.98;
     private static final double ELASTICITY = 0.9;
-    private static final double FLIPPER_FORCE = 25.0;
-    private static final double LAUNCHER_FORCE = 20.0;
-    private static final double BALL_RADIUS = 10.0;
+    private static final double FLIPPER_FORCE = 15.0;
+    private static final double LAUNCHER_FORCE = 12.0;
+    private static final double BALL_RADIUS = 6.0;
 
-    private static final double TABLE_WIDTH = 1280;
-    private static final double TABLE_HEIGHT = 800;
-    private static final double WALL_LEFT = 200;
-    private static final double WALL_RIGHT = 1080;
+    private static final double TABLE_WIDTH = 600;
+    private static final double TABLE_HEIGHT = 500;
+    private static final double WALL_LEFT = 100;
+    private static final double WALL_RIGHT = 500;
 
-    // Positions inspirées de Classic Pinball
+    // Positions des objets (alignées avec Phaser)
     private static final double[][] bumpers = {
-        {540, 150, 25}, {740, 150, 25}, {640, 100, 25} // Triangle en haut
+        {200, 150, 10}, {300, 180, 10}, {400, 150, 10}
     };
     private static final double[][] fixedTargets = {
-        {400, 300, 30, 30}, {880, 300, 30, 30} // Cibles fixes sur les côtés
+        {220, 100, 15, 15}, {380, 100, 15, 15}
     };
     private static final double[][] dropTargets = {
-        {580, 450, 30, 30}, {640, 450, 30, 30}, {700, 450, 30, 30} // Ligne au centre
+        {270, 250, 15, 15}, {300, 250, 15, 15}, {330, 250, 15, 15}
     };
-    private static final double[] hole = {1100, 150, 25}; // Trou en haut à droite
+    private static final double[] hole = {500, 200, 12};
+    private static final double[] spinner = {350, 300, 30, 8};
+    private static final double[] stopper = {300, 480, 20, 15};
 
     public PinballState getGameState() {
         return gameState;
@@ -66,20 +68,33 @@ public class PinballService {
 
         // Vérifier les collisions avec les flippers
         if (gameState.isLeftFlipperUp()) {
-            checkFlipperCollision(300, 750, 200, 40, -Math.PI / 6, true); // Flipper gauche
+            checkFlipperCollision(150, 480, 100, 20, -Math.PI / 6, true);
         }
         if (gameState.isRightFlipperUp()) {
-            checkFlipperCollision(980, 750, 200, 40, Math.PI / 6, false); // Flipper droit
+            checkFlipperCollision(450, 480, 100, 20, Math.PI / 6, false);
+        }
+        if (gameState.isUpperLeftFlipperUp()) {
+            checkFlipperCollision(200, 350, 80, 20, -Math.PI / 6, true); // Flipper supérieur gauche
         }
 
         // Vérifier les autres collisions
         checkBumperCollisions();
         checkTargetCollisions();
         checkHoleCollision();
+        checkSpinnerCollision();
+        checkStopperCollision();
 
         // Vérifier si la balle est perdue
         if (gameState.getBallY() > TABLE_HEIGHT + 50) {
             resetBall();
+        }
+
+        // Activer/désactiver le stopper aléatoirement
+        if (Math.random() < 0.001) {
+            gameState.setStopperActive(!gameState.isStopperActive());
+            if (gameState.isStopperActive()) {
+                gameState.setStopperActivationTime(System.currentTimeMillis());
+            }
         }
     }
 
@@ -96,7 +111,7 @@ public class PinballService {
             gameState.setBallSpeedY(-gameState.getBallSpeedY() * ELASTICITY);
         }
         if (newX < WALL_LEFT) {
-            double wallY = TABLE_HEIGHT - (newX / WALL_LEFT) * (TABLE_HEIGHT - 300);
+            double wallY = TABLE_HEIGHT - (newX / WALL_LEFT) * (TABLE_HEIGHT - 150);
             if (newY > wallY) {
                 double nx = 0.8;
                 double ny = 0.6;
@@ -107,7 +122,7 @@ public class PinballService {
                 gameState.setBallY(gameState.getBallY() + ny * 5);
             }
         } else if (newX > WALL_RIGHT) {
-            double wallY = TABLE_HEIGHT - ((TABLE_WIDTH - newX) / (TABLE_WIDTH - WALL_RIGHT)) * (TABLE_HEIGHT - 300);
+            double wallY = TABLE_HEIGHT - ((TABLE_WIDTH - newX) / (TABLE_WIDTH - WALL_RIGHT)) * (TABLE_HEIGHT - 150);
             if (newY > wallY) {
                 double nx = -0.8;
                 double ny = 0.6;
@@ -132,12 +147,13 @@ public class PinballService {
         if (distance < BALL_RADIUS + width) {
             double force = isLeft ? FLIPPER_FORCE : -FLIPPER_FORCE;
             gameState.setBallSpeedX(gameState.getBallSpeedX() + Math.cos(flipperAngle + Math.PI / 2) * force);
-            gameState.setBallSpeedY(gameState.getBallSpeedY() + Math.sin(flipperAngle + Math.PI / 2) * force - 10);
-            double pushX = Math.cos(flipperAngle + Math.PI / 2) * 5;
-            double pushY = Math.sin(flipperAngle + Math.PI / 2) * 5;
+            gameState.setBallSpeedY(gameState.getBallSpeedY() + Math.sin(flipperAngle + Math.PI / 2) * force);
+            gameState.setBallSpeedY(gameState.getBallSpeedY() - 5);
+            double pushX = Math.cos(flipperAngle + Math.PI / 2) * 2;
+            double pushY = Math.sin(flipperAngle + Math.PI / 2) * 2;
             gameState.setBallX(gameState.getBallX() + pushX);
             gameState.setBallY(gameState.getBallY() + pushY);
-            gameState.setScore(gameState.getScore() + 20);
+            gameState.setScore(gameState.getScore() + 10);
         }
     }
 
@@ -248,6 +264,7 @@ public class PinballService {
 
         if (distance < hole[2] + BALL_RADIUS / 2) {
             gameState.setHoleActive(true);
+            gameState.setStopperActivationTime(System.currentTimeMillis());
             gameState.setBallSpeedX(gameState.getBallSpeedX() * 0.5);
             gameState.setBallSpeedY(gameState.getBallSpeedY() * 0.5);
             gameState.setBallX(gameState.getBallX() + (hole[0] - gameState.getBallX()) * 0.1);
@@ -258,17 +275,59 @@ public class PinballService {
     private void handleHoleEffect() {
         if (System.currentTimeMillis() - gameState.getStopperActivationTime() > 1000) {
             gameState.setScore(gameState.getScore() + 500);
-            resetBall();
+            gameState.setBallX(50);
+            gameState.setBallY(470);
+            gameState.setBallSpeedX(0);
+            gameState.setBallSpeedY(0);
             gameState.setHoleActive(false);
+            gameState.setLaunching(true);
         } else {
             gameState.setBallX(gameState.getBallX() + (hole[0] - gameState.getBallX()) * 0.1);
             gameState.setBallY(gameState.getBallY() + (hole[1] - gameState.getBallY()) * 0.1);
         }
     }
 
+    private void checkSpinnerCollision() {
+        double dx = gameState.getBallX() - spinner[0];
+        double dy = gameState.getBallY() - spinner[1];
+        double distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < BALL_RADIUS + spinner[2] / 2) {
+            double spinSpeed = Math.sqrt(
+                    gameState.getBallSpeedX() * gameState.getBallSpeedX() +
+                    gameState.getBallSpeedY() * gameState.getBallSpeedY());
+            gameState.setSpinnerRotation((int) (gameState.getSpinnerRotation() + spinSpeed));
+            if (gameState.getBallX() < spinner[0]) {
+                gameState.setBallSpeedX(gameState.getBallSpeedX() - 0.1);
+            } else {
+                gameState.setBallSpeedX(gameState.getBallSpeedX() + 0.1);
+            }
+            gameState.setScore(gameState.getScore() + (int) Math.floor(spinSpeed) * 5);
+        } else {
+            gameState.setSpinnerRotation((int) (gameState.getSpinnerRotation() * 0.95));
+        }
+    }
+
+    private void checkStopperCollision() {
+        if (gameState.isStopperActive() &&
+                gameState.getBallX() + BALL_RADIUS > stopper[0] &&
+                gameState.getBallX() - BALL_RADIUS < stopper[0] + stopper[2] &&
+                gameState.getBallY() + BALL_RADIUS > stopper[1] &&
+                gameState.getBallY() - BALL_RADIUS < stopper[1] + stopper[3]) {
+            gameState.setBallSpeedY(-Math.abs(gameState.getBallSpeedY()) - 5);
+            gameState.setBallSpeedX(gameState.getBallSpeedX() + (Math.random() - 0.5) * 3);
+            gameState.setScore(gameState.getScore() + 25);
+        }
+
+        if (gameState.isStopperActive() &&
+                System.currentTimeMillis() - gameState.getStopperActivationTime() > 5000) {
+            gameState.setStopperActive(false);
+        }
+    }
+
     private void resetBall() {
-        gameState.setBallX(1200);
-        gameState.setBallY(750);
+        gameState.setBallX(50);
+        gameState.setBallY(470);
         gameState.setBallSpeedX(0);
         gameState.setBallSpeedY(0);
         gameState.setLaunching(true);
@@ -276,8 +335,8 @@ public class PinballService {
 
     public void launchBall() {
         if (gameState.isLaunching()) {
-            gameState.setBallSpeedY(-LAUNCHER_FORCE * 30);
-            gameState.setBallSpeedX(-5); // Légère déviation vers la gauche
+            gameState.setBallSpeedY(-LAUNCHER_FORCE * 1.5);
+            gameState.setBallSpeedX(0);
             gameState.setLaunching(false);
         }
     }
@@ -290,11 +349,12 @@ public class PinballService {
         gameState.setRightFlipperUp(up);
     }
 
+    public void moveUpperLeftFlipper(boolean up) {
+        gameState.setUpperLeftFlipperUp(up);
+    }
+
     public void reset() {
         resetBall();
         gameState.setScore(0);
-        for (int i = 0; i < bumpersHit.length; i++) bumpersHit[i] = false;
-        for (int i = 0; i < fixedTargetsHit.length; i++) fixedTargetsHit[i] = false;
-        for (int i = 0; i < dropTargetsHit.length; i++) dropTargetsHit[i] = false;
     }
 }
