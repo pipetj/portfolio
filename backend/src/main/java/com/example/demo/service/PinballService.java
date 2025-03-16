@@ -6,355 +6,350 @@ import org.springframework.stereotype.Service;
 @Service
 public class PinballService {
     private PinballState gameState = new PinballState();
+    private static final double GRAVITY = 800;
+    private static final double TIME_STEP = 0.016;
+    private double launchForce = 0;
 
-    // Constantes physiques alignées avec Phaser (60 FPS)
-    private static final double GRAVITY = 400;
-    private static final double FRICTION = 0.98;
-    private static final double ELASTICITY = 0.9;
-    private static final double FLIPPER_FORCE = 15.0;
-    private static final double LAUNCHER_FORCE = 12.0;
-    private static final double BALL_RADIUS = 6.0;
-
-    private static final double TABLE_WIDTH = 600;
-    private static final double TABLE_HEIGHT = 500;
-    private static final double WALL_LEFT = 100;
-    private static final double WALL_RIGHT = 500;
-
-    // Positions des objets (alignées avec Phaser)
-    private static final double[][] bumpers = {
-        {200, 150, 10}, {300, 180, 10}, {400, 150, 10}
-    };
-    private static final double[][] fixedTargets = {
-        {220, 100, 15, 15}, {380, 100, 15, 15}
-    };
-    private static final double[][] dropTargets = {
-        {270, 250, 15, 15}, {300, 250, 15, 15}, {330, 250, 15, 15}
-    };
-    private static final double[] hole = {500, 200, 12};
-    private static final double[] spinner = {350, 300, 30, 8};
-    private static final double[] stopper = {300, 480, 20, 15};
+    private static final double BOUNCE_DAMPENING = 0.7;
+    private static final double FRICTION = 0.99;
+    private static final double GAME_WIDTH = 400;
+    private static final double GAME_HEIGHT = 800;
+    private final long[] targetCooldowns = new long[2];
 
     public PinballState getGameState() {
         return gameState;
     }
 
     public void updateGame() {
-        if (gameState.isLaunching()) {
-            return;
-        }
+        if (gameState.isLaunching()) return;
 
-        if (gameState.isHoleActive()) {
-            handleHoleEffect();
-            return;
-        }
+        gameState.setBallSpeedY(gameState.getBallSpeedY() + GRAVITY * TIME_STEP);
 
-        // Appliquer la gravité
-        gameState.setBallSpeedY(gameState.getBallSpeedY() + GRAVITY * 0.016);
+        double newX = gameState.getBallX() + gameState.getBallSpeedX() * TIME_STEP;
+        double newY = gameState.getBallY() + gameState.getBallSpeedY() * TIME_STEP;
 
-        // Appliquer la friction
+        checkWallCollisions(newX, newY);
+        checkBumperCollisions();
+        checkTargetCollisions();
+        checkSlingshotCollisions();
+        checkFlipperCollisions();
+
+        gameState.setBallX(Math.max(0, Math.min(GAME_WIDTH, gameState.getBallX() + gameState.getBallSpeedX() * TIME_STEP)));
+        gameState.setBallY(Math.max(0, Math.min(GAME_HEIGHT, gameState.getBallY() + gameState.getBallSpeedY() * TIME_STEP)));
+
         gameState.setBallSpeedX(gameState.getBallSpeedX() * FRICTION);
         gameState.setBallSpeedY(gameState.getBallSpeedY() * FRICTION);
 
-        // Calculer la nouvelle position
-        double newX = gameState.getBallX() + gameState.getBallSpeedX();
-        double newY = gameState.getBallY() + gameState.getBallSpeedY();
+        // Suppression de la téléportation près de l'ouverture
+        // Suppression complète de la logique suivante :
+        /*
+        if (!gameState.isLaunching() && gameState.getBallY() > 630 && gameState.getBallX() > 355) {
+            double targetX = 354;
+            double targetY = 160;
+            double dx = targetX - gameState.getBallX();
+            double dy = targetY - gameState.getBallY();
+            double distance = Math.sqrt(dx * dx + dy * dy);
 
-        // Vérifier les collisions avec les murs
-        checkWallCollisions(newX, newY);
-
-        // Mettre à jour la position
-        gameState.setBallX(gameState.getBallX() + gameState.getBallSpeedX());
-        gameState.setBallY(gameState.getBallY() + gameState.getBallSpeedY());
-
-        // Vérifier les collisions avec les flippers
-        if (gameState.isLeftFlipperUp()) {
-            checkFlipperCollision(150, 480, 100, 20, -Math.PI / 6, true);
-        }
-        if (gameState.isRightFlipperUp()) {
-            checkFlipperCollision(450, 480, 100, 20, Math.PI / 6, false);
-        }
-        if (gameState.isUpperLeftFlipperUp()) {
-            checkFlipperCollision(200, 350, 80, 20, -Math.PI / 6, true); // Flipper supérieur gauche
-        }
-
-        // Vérifier les autres collisions
-        checkBumperCollisions();
-        checkTargetCollisions();
-        checkHoleCollision();
-        checkSpinnerCollision();
-        checkStopperCollision();
-
-        // Vérifier si la balle est perdue
-        if (gameState.getBallY() > TABLE_HEIGHT + 50) {
-            resetBall();
-        }
-
-        // Activer/désactiver le stopper aléatoirement
-        if (Math.random() < 0.001) {
-            gameState.setStopperActive(!gameState.isStopperActive());
-            if (gameState.isStopperActive()) {
-                gameState.setStopperActivationTime(System.currentTimeMillis());
+            if (distance > 10) {
+                double speed = 300;
+                double moveX = (dx / distance) * speed * TIME_STEP;
+                double moveY = (dy / distance) * speed * TIME_STEP;
+                gameState.setBallX(gameState.getBallX() + moveX);
+                gameState.setBallY(gameState.getBallY() + moveY);
+                gameState.setBallSpeedX(-Math.abs(gameState.getBallSpeedX()) * 0.5);
+                gameState.setBallSpeedY(-Math.abs(gameState.getBallSpeedY()));
             }
         }
+        */
+
+        // Gestion de la perte de balle (alignée avec le client)
+        if (gameState.getBallY() > 780) {
+            if (gameState.getBallX() > 140 && gameState.getBallX() < 260) {
+                gameState.setBallsLeft(gameState.getBallsLeft() - 1);
+                if (gameState.getBallsLeft() <= 0) {
+                    gameState.setGameOver(true);
+                } else {
+                    publicResetBall();
+                }
+            }
+            // Suppression de la limite forcée : gameState.setBallY(780);
+        }
+
+        detectAndResolveBallStuck();
     }
 
     private void checkWallCollisions(double newX, double newY) {
-        if (newX - BALL_RADIUS < 0) {
-            gameState.setBallX(BALL_RADIUS);
-            gameState.setBallSpeedX(-gameState.getBallSpeedX() * ELASTICITY);
-        } else if (newX + BALL_RADIUS > TABLE_WIDTH) {
-            gameState.setBallX(TABLE_WIDTH - BALL_RADIUS);
-            gameState.setBallSpeedX(-gameState.getBallSpeedX() * ELASTICITY);
+        double radius = gameState.getBallRadius();
+
+        if (newX - radius < 10) {
+            gameState.setBallX(10 + radius);
+            gameState.setBallSpeedX(-gameState.getBallSpeedX() * BOUNCE_DAMPENING);
+        } else if (newX + radius > GAME_WIDTH - 10) {
+            gameState.setBallX(GAME_WIDTH - 10 - radius);
+            gameState.setBallSpeedX(-gameState.getBallSpeedX() * BOUNCE_DAMPENING);
         }
-        if (newY - BALL_RADIUS < 0) {
-            gameState.setBallY(BALL_RADIUS);
-            gameState.setBallSpeedY(-gameState.getBallSpeedY() * ELASTICITY);
+
+        if (newY - radius < 10) {
+            gameState.setBallY(10 + radius);
+            gameState.setBallSpeedY(-gameState.getBallSpeedY() * BOUNCE_DAMPENING);
         }
-        if (newX < WALL_LEFT) {
-            double wallY = TABLE_HEIGHT - (newX / WALL_LEFT) * (TABLE_HEIGHT - 150);
-            if (newY > wallY) {
-                double nx = 0.8;
-                double ny = 0.6;
-                double dot = gameState.getBallSpeedX() * nx + gameState.getBallSpeedY() * ny;
-                gameState.setBallSpeedX((gameState.getBallSpeedX() - 2 * dot * nx) * ELASTICITY);
-                gameState.setBallSpeedY((gameState.getBallSpeedY() - 2 * dot * ny) * ELASTICITY);
-                gameState.setBallX(gameState.getBallX() + nx * 5);
-                gameState.setBallY(gameState.getBallY() + ny * 5);
+
+        // Correction des collisions pour les triangles inclinés
+        // Triangle gauche (x: 55 à 105, y: 670 à 770, pente positive)
+        if (newX >= 55 && newX <= 105 && newY >= 670 && newY <= 770) {
+            // Équation de la droite : y = mx + b, où m est la pente et b l'ordonnée à l'origine
+            double m = (770 - 670) / (105 - 55); // Pente (100 / 50 = 2)
+            double b = 670 - m * 55; // b = y - mx
+            double lineY = m * newX + b; // Position y sur la droite pour le x donné
+            double distanceToWall = Math.abs(newY - lineY);
+
+            if (distanceToWall < radius) {
+                // Normaliser la direction de la réflexion
+                double normalAngle = Math.atan2(-1, m); // Normale à la pente
+                double incidentAngle = Math.atan2(gameState.getBallSpeedY(), gameState.getBallSpeedX());
+                double reflectionAngle = 2 * normalAngle - incidentAngle;
+
+                double speed = Math.sqrt(gameState.getBallSpeedX() * gameState.getBallSpeedX() + gameState.getBallSpeedY() * gameState.getBallSpeedY());
+                gameState.setBallSpeedX(Math.cos(reflectionAngle) * speed * BOUNCE_DAMPENING);
+                gameState.setBallSpeedY(Math.sin(reflectionAngle) * speed * BOUNCE_DAMPENING);
+
+                // Repositionner la balle pour éviter qu'elle ne traverse
+                gameState.setBallY(lineY + radius * Math.sin(normalAngle));
+                gameState.setBallX(newX + radius * Math.cos(normalAngle));
             }
-        } else if (newX > WALL_RIGHT) {
-            double wallY = TABLE_HEIGHT - ((TABLE_WIDTH - newX) / (TABLE_WIDTH - WALL_RIGHT)) * (TABLE_HEIGHT - 150);
-            if (newY > wallY) {
-                double nx = -0.8;
-                double ny = 0.6;
-                double dot = gameState.getBallSpeedX() * nx + gameState.getBallSpeedY() * ny;
-                gameState.setBallSpeedX((gameState.getBallSpeedX() - 2 * dot * nx) * ELASTICITY);
-                gameState.setBallSpeedY((gameState.getBallSpeedY() - 2 * dot * ny) * ELASTICITY);
-                gameState.setBallX(gameState.getBallX() + nx * 5);
-                gameState.setBallY(gameState.getBallY() + ny * 5);
-            }
         }
-    }
 
-    private void checkFlipperCollision(double x, double y, double length, double width, double angle, boolean isLeft) {
-        double flipperAngle = isLeft ? -angle : angle;
-        double flipperX = x + Math.cos(flipperAngle) * length * (isLeft ? -0.5 : 0.5);
-        double flipperY = y + Math.sin(flipperAngle) * length * (isLeft ? -0.5 : 0.5);
+        // Triangle droit (x: 295 à 345, y: 670 à 770, pente négative)
+        if (newX >= 295 && newX <= 345 && newY >= 670 && newY <= 770) {
+            double m = (770 - 670) / (295 - 345); // Pente (100 / -50 = -2)
+            double b = 670 - m * 345;
+            double lineY = m * newX + b;
+            double distanceToWall = Math.abs(newY - lineY);
 
-        double dx = gameState.getBallX() - flipperX;
-        double dy = gameState.getBallY() - flipperY;
-        double distance = Math.sqrt(dx * dx + dy * dy);
+            if (distanceToWall < radius) {
+                double normalAngle = Math.atan2(-1, m);
+                double incidentAngle = Math.atan2(gameState.getBallSpeedY(), gameState.getBallSpeedX());
+                double reflectionAngle = 2 * normalAngle - incidentAngle;
 
-        if (distance < BALL_RADIUS + width) {
-            double force = isLeft ? FLIPPER_FORCE : -FLIPPER_FORCE;
-            gameState.setBallSpeedX(gameState.getBallSpeedX() + Math.cos(flipperAngle + Math.PI / 2) * force);
-            gameState.setBallSpeedY(gameState.getBallSpeedY() + Math.sin(flipperAngle + Math.PI / 2) * force);
-            gameState.setBallSpeedY(gameState.getBallSpeedY() - 5);
-            double pushX = Math.cos(flipperAngle + Math.PI / 2) * 2;
-            double pushY = Math.sin(flipperAngle + Math.PI / 2) * 2;
-            gameState.setBallX(gameState.getBallX() + pushX);
-            gameState.setBallY(gameState.getBallY() + pushY);
-            gameState.setScore(gameState.getScore() + 10);
+                double speed = Math.sqrt(gameState.getBallSpeedX() * gameState.getBallSpeedX() + gameState.getBallSpeedY() * gameState.getBallSpeedY());
+                gameState.setBallSpeedX(Math.cos(reflectionAngle) * speed * BOUNCE_DAMPENING);
+                gameState.setBallSpeedY(Math.sin(reflectionAngle) * speed * BOUNCE_DAMPENING);
+
+                gameState.setBallY(lineY + radius * Math.sin(normalAngle));
+                gameState.setBallX(newX + radius * Math.cos(normalAngle));
+            }
         }
     }
 
     private void checkBumperCollisions() {
-        for (int i = 0; i < bumpers.length; i++) {
-            double bumperX = bumpers[i][0];
-            double bumperY = bumpers[i][1];
-            double bumperRadius = bumpers[i][2];
+        double[] bumperX = gameState.getBumperX();
+        double[] bumperY = gameState.getBumperY();
+        double bumperRadius = gameState.getBumperRadius();
+        double ballRadius = gameState.getBallRadius();
 
-            double dx = gameState.getBallX() - bumperX;
-            double dy = gameState.getBallY() - bumperY;
-            double distance = Math.sqrt(dx * dx + dy * dy);
+        for (int i = 0; i < bumperX.length; i++) {
+            double distance = Math.sqrt(
+                Math.pow(gameState.getBallX() - bumperX[i], 2) +
+                Math.pow(gameState.getBallY() - bumperY[i], 2)
+            );
 
-            if (distance < BALL_RADIUS + bumperRadius) {
-                double nx = dx / distance;
-                double ny = dy / distance;
-                double speed = Math.sqrt(gameState.getBallSpeedX() * gameState.getBallSpeedX() +
-                        gameState.getBallSpeedY() * gameState.getBallSpeedY());
-                gameState.setBallSpeedX(nx * speed * 1.5);
-                gameState.setBallSpeedY(ny * speed * 1.5);
-                gameState.setBallX(bumperX + nx * (BALL_RADIUS + bumperRadius + 1));
-                gameState.setBallY(bumperY + ny * (BALL_RADIUS + bumperRadius + 1));
-                gameState.getBumpersHit()[i] = true;
+            if (distance < ballRadius + bumperRadius) {
+                double angle = Math.atan2(
+                    gameState.getBallY() - bumperY[i],
+                    gameState.getBallX() - bumperX[i]
+                );
+                double repulsionForce = 400;
+                gameState.setBallSpeedX(Math.cos(angle) * repulsionForce);
+                gameState.setBallSpeedY(Math.sin(angle) * repulsionForce);
                 gameState.setScore(gameState.getScore() + 100);
-
-                final int index = i;
-                new Thread(() -> {
-                    try {
-                        Thread.sleep(300);
-                        gameState.getBumpersHit()[index] = false;
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                }).start();
+                double minDistance = ballRadius + bumperRadius + 5;
+                if (distance < minDistance) {
+                    gameState.setBallX(bumperX[i] + Math.cos(angle) * minDistance);
+                    gameState.setBallY(bumperY[i] + Math.sin(angle) * minDistance);
+                }
             }
         }
     }
 
     private void checkTargetCollisions() {
-        for (int i = 0; i < fixedTargets.length; i++) {
-            if (!gameState.getFixedTargetsHit()[i] &&
-                    gameState.getBallX() + BALL_RADIUS > fixedTargets[i][0] &&
-                    gameState.getBallX() - BALL_RADIUS < fixedTargets[i][0] + fixedTargets[i][2] &&
-                    gameState.getBallY() + BALL_RADIUS > fixedTargets[i][1] &&
-                    gameState.getBallY() - BALL_RADIUS < fixedTargets[i][1] + fixedTargets[i][3]) {
-                gameState.getFixedTargetsHit()[i] = true;
-                if (Math.abs(gameState.getBallX() - fixedTargets[i][0]) < Math.abs(gameState.getBallY() - fixedTargets[i][1])) {
-                    gameState.setBallSpeedY(-gameState.getBallSpeedY());
-                } else {
-                    gameState.setBallSpeedX(-gameState.getBallSpeedX());
-                }
-                gameState.setScore(gameState.getScore() + 50);
+        double[] targetX = gameState.getTargetX();
+        double[] targetY = gameState.getTargetY();
+        double targetRadius = gameState.getTargetRadius();
+        double ballRadius = gameState.getBallRadius();
 
-                final int index = i;
-                new Thread(() -> {
-                    try {
-                        Thread.sleep(1000);
-                        gameState.getFixedTargetsHit()[index] = false;
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                }).start();
-            }
-        }
+        for (int i = 0; i < targetX.length; i++) {
+            double distance = Math.sqrt(
+                Math.pow(gameState.getBallX() - targetX[i], 2) +
+                Math.pow(gameState.getBallY() - targetY[i], 2)
+            );
 
-        for (int i = 0; i < dropTargets.length; i++) {
-            if (!gameState.getDropTargetsHit()[i] &&
-                    gameState.getBallX() + BALL_RADIUS > dropTargets[i][0] &&
-                    gameState.getBallX() - BALL_RADIUS < dropTargets[i][0] + dropTargets[i][2] &&
-                    gameState.getBallY() + BALL_RADIUS > dropTargets[i][1] &&
-                    gameState.getBallY() - BALL_RADIUS < dropTargets[i][1] + dropTargets[i][3]) {
-                gameState.getDropTargetsHit()[i] = true;
-                if (Math.abs(gameState.getBallX() - dropTargets[i][0]) < Math.abs(gameState.getBallY() - dropTargets[i][1])) {
-                    gameState.setBallSpeedY(-gameState.getBallSpeedY());
-                } else {
-                    gameState.setBallSpeedX(-gameState.getBallSpeedX());
-                }
-                gameState.setScore(gameState.getScore() + 200);
-
-                if (allDropTargetsHit()) {
-                    gameState.setScore(gameState.getScore() + 1000);
-                    new Thread(() -> {
-                        try {
-                            Thread.sleep(3000);
-                            for (int j = 0; j < gameState.getDropTargetsHit().length; j++) {
-                                gameState.getDropTargetsHit()[j] = false;
-                            }
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
-                    }).start();
+            if (distance < ballRadius + targetRadius) {
+                long now = System.currentTimeMillis();
+                if (now - targetCooldowns[i] > 10000) {
+                    gameState.setScore(gameState.getScore() + 200);
+                    targetCooldowns[i] = now;
                 }
             }
         }
     }
 
-    private boolean allDropTargetsHit() {
-        for (boolean hit : gameState.getDropTargetsHit()) {
-            if (!hit) return false;
-        }
-        return true;
-    }
+    private void checkSlingshotCollisions() {
+        double[] slingshotX = gameState.getSlingshotX();
+        double[] slingshotY = gameState.getSlingshotY();
+        double slingshotWidth = 90;
+        double slingshotHeight = 270;
+        double ballRadius = gameState.getBallRadius();
 
-    private void checkHoleCollision() {
-        double dx = gameState.getBallX() - hole[0];
-        double dy = gameState.getBallY() - hole[1];
-        double distance = Math.sqrt(dx * dx + dy * dy);
+        for (int i = 0; i < slingshotX.length; i++) {
+            double halfWidth = slingshotWidth / 2;
+            double halfHeight = slingshotHeight / 2;
 
-        if (distance < hole[2] + BALL_RADIUS / 2) {
-            gameState.setHoleActive(true);
-            gameState.setStopperActivationTime(System.currentTimeMillis());
-            gameState.setBallSpeedX(gameState.getBallSpeedX() * 0.5);
-            gameState.setBallSpeedY(gameState.getBallSpeedY() * 0.5);
-            gameState.setBallX(gameState.getBallX() + (hole[0] - gameState.getBallX()) * 0.1);
-            gameState.setBallY(gameState.getBallY() + (hole[1] - gameState.getBallY()) * 0.1);
-        }
-    }
+            if (
+                Math.abs(gameState.getBallX() - slingshotX[i]) < halfWidth + ballRadius &&
+                Math.abs(gameState.getBallY() - slingshotY[i]) < halfHeight + ballRadius
+            ) {
+                boolean fromLeft = (i == 0 && gameState.getBallSpeedX() > 0);
+                boolean fromRight = (i == 1 && gameState.getBallSpeedX() < 0);
 
-    private void handleHoleEffect() {
-        if (System.currentTimeMillis() - gameState.getStopperActivationTime() > 1000) {
-            gameState.setScore(gameState.getScore() + 500);
-            gameState.setBallX(50);
-            gameState.setBallY(470);
-            gameState.setBallSpeedX(0);
-            gameState.setBallSpeedY(0);
-            gameState.setHoleActive(false);
-            gameState.setLaunching(true);
-        } else {
-            gameState.setBallX(gameState.getBallX() + (hole[0] - gameState.getBallX()) * 0.1);
-            gameState.setBallY(gameState.getBallY() + (hole[1] - gameState.getBallY()) * 0.1);
-        }
-    }
-
-    private void checkSpinnerCollision() {
-        double dx = gameState.getBallX() - spinner[0];
-        double dy = gameState.getBallY() - spinner[1];
-        double distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < BALL_RADIUS + spinner[2] / 2) {
-            double spinSpeed = Math.sqrt(
-                    gameState.getBallSpeedX() * gameState.getBallSpeedX() +
-                    gameState.getBallSpeedY() * gameState.getBallSpeedY());
-            gameState.setSpinnerRotation((int) (gameState.getSpinnerRotation() + spinSpeed));
-            if (gameState.getBallX() < spinner[0]) {
-                gameState.setBallSpeedX(gameState.getBallSpeedX() - 0.1);
-            } else {
-                gameState.setBallSpeedX(gameState.getBallSpeedX() + 0.1);
+                if (fromLeft || fromRight) {
+                    double directionX = fromLeft ? -1 : 1;
+                    gameState.setBallSpeedX(directionX * 400);
+                    gameState.setBallSpeedY(-Math.abs(gameState.getBallSpeedY()) - 200);
+                    gameState.setScore(gameState.getScore() + 50);
+                }
             }
-            gameState.setScore(gameState.getScore() + (int) Math.floor(spinSpeed) * 5);
-        } else {
-            gameState.setSpinnerRotation((int) (gameState.getSpinnerRotation() * 0.95));
         }
     }
 
-    private void checkStopperCollision() {
-        if (gameState.isStopperActive() &&
-                gameState.getBallX() + BALL_RADIUS > stopper[0] &&
-                gameState.getBallX() - BALL_RADIUS < stopper[0] + stopper[2] &&
-                gameState.getBallY() + BALL_RADIUS > stopper[1] &&
-                gameState.getBallY() - BALL_RADIUS < stopper[1] + stopper[3]) {
-            gameState.setBallSpeedY(-Math.abs(gameState.getBallSpeedY()) - 5);
-            gameState.setBallSpeedX(gameState.getBallSpeedX() + (Math.random() - 0.5) * 3);
-            gameState.setScore(gameState.getScore() + 25);
+    private void checkFlipperCollisions() {
+        if (
+            Math.abs(gameState.getBallX() - gameState.getLeftFlipperX()) < 40 &&
+            Math.abs(gameState.getBallY() - gameState.getLeftFlipperY()) < 20
+        ) {
+            if (gameState.getLeftFlipperAngle() == gameState.getLeftFlipperUpAngle()) {
+                double angle = Math.toRadians(-45);
+                double force = 800;
+                gameState.setBallSpeedX(Math.cos(angle) * force);
+                gameState.setBallSpeedY(Math.sin(angle) * force);
+            }
         }
 
-        if (gameState.isStopperActive() &&
-                System.currentTimeMillis() - gameState.getStopperActivationTime() > 5000) {
-            gameState.setStopperActive(false);
+        if (
+            Math.abs(gameState.getBallX() - gameState.getRightFlipperX()) < 40 &&
+            Math.abs(gameState.getBallY() - gameState.getRightFlipperY()) < 20
+        ) {
+            if (gameState.getRightFlipperAngle() == gameState.getRightFlipperUpAngle()) {
+                double angle = Math.toRadians(-135);
+                double force = 800;
+                gameState.setBallSpeedX(Math.cos(angle) * force);
+                gameState.setBallSpeedY(Math.sin(angle) * force);
+            }
         }
     }
 
-    private void resetBall() {
-        gameState.setBallX(50);
-        gameState.setBallY(470);
-        gameState.setBallSpeedX(0);
-        gameState.setBallSpeedY(0);
-        gameState.setLaunching(true);
+    public void chargeLaunch() {
+        if (gameState.isLaunching()) {
+            launchForce += 15;
+            if (launchForce > 800) launchForce = 800;
+        }
     }
 
     public void launchBall() {
-        if (gameState.isLaunching()) {
-            gameState.setBallSpeedY(-LAUNCHER_FORCE * 1.5);
-            gameState.setBallSpeedX(0);
+        if (gameState.isLaunching() && launchForce > 0) {
+            double angle = -Math.PI / 2 + (launchForce / 800) * (Math.PI / 6);
+            gameState.setBallSpeedX(Math.cos(angle) * 200);
+            gameState.setBallSpeedY(-launchForce);
             gameState.setLaunching(false);
+            launchForce = 0;
         }
     }
 
     public void moveLeftFlipper(boolean up) {
-        gameState.setLeftFlipperUp(up);
+        double targetAngle = up ? gameState.getLeftFlipperUpAngle() : gameState.getLeftFlipperDownAngle();
+        gameState.setLeftFlipperAngle(targetAngle);
+
+        if (up && isNearLeftFlipper()) {
+            double force = 800;
+            double angle = Math.toRadians(-30);
+            gameState.setBallSpeedX(Math.cos(angle) * force);
+            gameState.setBallSpeedY(Math.sin(angle) * force);
+        }
     }
 
     public void moveRightFlipper(boolean up) {
-        gameState.setRightFlipperUp(up);
+        double targetAngle = up ? gameState.getRightFlipperUpAngle() : gameState.getRightFlipperDownAngle();
+        gameState.setRightFlipperAngle(targetAngle);
+
+        if (up && isNearRightFlipper()) {
+            double force = 800;
+            double angle = Math.toRadians(-150);
+            gameState.setBallSpeedX(Math.cos(angle) * force);
+            gameState.setBallSpeedY(Math.sin(angle) * force);
+        }
     }
 
-    public void moveUpperLeftFlipper(boolean up) {
-        gameState.setUpperLeftFlipperUp(up);
+    private boolean isNearLeftFlipper() {
+        return (
+            Math.abs(gameState.getBallX() - gameState.getLeftFlipperX()) < 40 &&
+            Math.abs(gameState.getBallY() - gameState.getLeftFlipperY()) < 20
+        );
     }
 
-    public void reset() {
-        resetBall();
-        gameState.setScore(0);
+    private boolean isNearRightFlipper() {
+        return (
+            Math.abs(gameState.getBallX() - gameState.getRightFlipperX()) < 40 &&
+            Math.abs(gameState.getBallY() - gameState.getRightFlipperY()) < 20
+        );
+    }
+
+    public void hitTarget() {
+        long now = System.currentTimeMillis();
+        if (now - targetCooldowns[0] > 10000) {
+            gameState.setScore(gameState.getScore() + 100);
+            targetCooldowns[0] = now;
+        }
+    }
+
+    public void hitSlingshot() {
+        gameState.setScore(gameState.getScore() + 50);
+        gameState.setBallSpeedY(-Math.abs(gameState.getBallSpeedY()) * 1.5);
+    }
+
+    public void publicResetBall() {
+        gameState.setBallX(387.5);
+        gameState.setBallY(630);
+        gameState.setBallSpeedX(0);
+        gameState.setBallSpeedY(0);
+        gameState.setLaunching(true);
+        launchForce = 0;
+        gameState.setLeftFlipperAngle(gameState.getLeftFlipperDownAngle());
+        gameState.setRightFlipperAngle(gameState.getRightFlipperDownAngle());
+    }
+
+    public void resetGame() {
+        gameState = new PinballState();
+        publicResetBall();
+        for (int i = 0; i < targetCooldowns.length; i++) targetCooldowns[i] = 0;
+    }
+
+    private void detectAndResolveBallStuck() {
+        if (Math.abs(gameState.getBallSpeedX()) < 10 && Math.abs(gameState.getBallSpeedY()) < 10) {
+            gameState.incrementStuckCounter();
+
+            if (gameState.getStuckCounter() > 180) {
+                double angle = Math.random() * 2 * Math.PI;
+                double force = 150 + Math.random() * 100;
+                gameState.setBallSpeedX(Math.cos(angle) * force);
+                gameState.setBallSpeedY(Math.sin(angle) * force);
+                gameState.resetStuckCounter();
+
+                if (gameState.getBallX() > 350 && gameState.getBallY() > 500) {
+                    gameState.setBallSpeedX(-force);
+                    gameState.setBallSpeedY(-force);
+                }
+            }
+        } else {
+            gameState.resetStuckCounter();
+        }
     }
 }

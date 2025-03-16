@@ -3,6 +3,24 @@
 import { useState, useEffect, JSX, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Fonctions utilitaires pour gérer les cookies
+const getCookie = (name: string): string | null => {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+};
+
+const setCookie = (name: string, value: string, days: number = 365) => {
+  if (typeof document === 'undefined') return;
+  const date = new Date();
+  date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
+  const expires = `expires=${date.toUTCString()}`;
+  document.cookie = `${name}=${value}; ${expires}; path=/`;
+  console.log(`Cookie défini : ${name}=${value}`);
+};
+
 const LETTERS: { [key: string]: number[][] } = {
   'A': [[0,1,1,0],[1,0,0,1],[1,1,1,1],[1,0,0,1],[1,0,0,1]],
   'B': [[1,1,1,0],[1,0,0,1],[1,1,1,0],[1,0,0,1],[1,1,1,0]],
@@ -42,26 +60,9 @@ const isValidChar = (char: string): boolean => {
   return !!LETTERS[char.toUpperCase()];
 };
 
-const GRID_SIZE = 30;
-const CELL_SIZE = 16.6;
+const GRID_SIZE = 20;
+const CELL_SIZE = 25;
 const FPS = 10;
-
-type Enemy = {
-  segments: { x: number; y: number }[];
-  target: { x: number; y: number };
-  direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
-  directionFrames: number;
-};
-
-type Particle = {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  color: string;
-  size: number;
-  life: number;
-};
 
 export default function Home() {
   const [showWelcome, setShowWelcome] = useState<boolean>(true);
@@ -75,16 +76,37 @@ export default function Home() {
   const requestRef = useRef<number>(0);
   const previousTimeRef = useRef<number>(0);
   const gameContainerRef = useRef<HTMLDivElement>(null);
-  
-  const [snake, setSnake] = useState<{ x: number; y: number }[]>([{ x: 15, y: 15 }]);
-  const [food, setFood] = useState<{ x: number; y: number }[]>([{ x: 20, y: 20 }]);
-  const [enemies, setEnemies] = useState<Enemy[]>([]);
-  const [particles, setParticles] = useState<Particle[]>([]);
+  const directionRef = useRef<'UP' | 'DOWN' | 'LEFT' | 'RIGHT'>('RIGHT');
+  const foodRef = useRef<{ x: number; y: number } | null>(null);
+  const snakeRef = useRef<{ x: number; y: number }[]>([{ x: 10, y: 10 }]);
+
+  const [snake, setSnake] = useState<{ x: number; y: number }[]>([{ x: 10, y: 10 }]);
+  const [food, setFood] = useState<{ x: number; y: number } | null>(null);
   const [direction, setDirection] = useState<'UP' | 'DOWN' | 'LEFT' | 'RIGHT'>('RIGHT');
   const [gameStarted, setGameStarted] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(0);
+
+  // Utilisation d'une référence pour le record persistant
+  const recordRef = useRef<number>(0);
+  const isFirstGameRef = useRef<boolean>(true);
+  const [record, setRecord] = useState<number>(recordRef.current); // État pour l'affichage
+
+  // Charger le record au montage
+  useEffect(() => {
+    const savedRecord = getCookie('snakeRecord');
+    console.log('Initialisation - Valeur du cookie "snakeRecord":', savedRecord);
+    if (savedRecord !== null && !isNaN(parseInt(savedRecord, 10))) {
+      const parsedRecord = parseInt(savedRecord, 10);
+      recordRef.current = parsedRecord;
+      isFirstGameRef.current = false;
+      setRecord(parsedRecord);
+      console.log('Record chargé depuis le cookie:', parsedRecord);
+    } else {
+      console.log('Aucun record trouvé, première partie détectée');
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -103,14 +125,12 @@ export default function Home() {
     const chars: JSX.Element[] = [];
     let xOffset = 0;
     const messageLength = message.length || 1;
-    const scaleFactor = Math.min(2.5, 45 / (messageLength * 5));
+    const maxWidth = 600;
+    const charWidth = 5 * 6;
+    const scaleFactor = Math.min(2.5, Math.max(0.5, maxWidth / (messageLength * charWidth)));
+    let totalWidth = messageLength * charWidth * scaleFactor;
 
-    let totalWidth = 0;
     const processedMessage = message.toUpperCase();
-
-    for (let i = 0; i < processedMessage.length; i++) {
-      totalWidth += 5 * 6 * scaleFactor;
-    }
 
     for (let i = 0; i < processedMessage.length; i++) {
       const char = processedMessage[i];
@@ -177,7 +197,12 @@ export default function Home() {
       ])
     );
 
-    setTimeout(() => setShowSnake(true), 1000);
+    setTimeout(() => {
+      setShowSnake(true);
+      if (gameContainerRef.current) {
+        gameContainerRef.current.focus();
+      }
+    }, 1000);
   };
 
   const gameLoop = (time: number) => {
@@ -193,12 +218,10 @@ export default function Home() {
     if (deltaTime >= interval) {
       previousTimeRef.current = time - (deltaTime % interval);
       const now = Date.now();
-      const baseSpeed = 200;
-      const speed = Math.max(baseSpeed - score * 5, 100);
+      const speed = 150;
 
       if (now - lastUpdateTime >= speed) {
         updateGame();
-        updateParticles();
         setLastUpdateTime(now);
       }
     }
@@ -206,249 +229,79 @@ export default function Home() {
     requestRef.current = requestAnimationFrame(gameLoop);
   };
 
-  const updateParticles = () => {
-    setParticles(prev => prev.map(p => ({
-      ...p,
-      x: p.x + p.vx,
-      y: p.y + p.vy,
-      life: p.life - 0.05,
-      vy: p.vy + 0.1
-    })).filter(p => p.life > 0));
-  };
-
-  const spawnDeathParticles = (x: number, y: number) => {
-    const newParticles: Particle[] = [];
-    const colors = ['#ff0000', '#ff6600', '#ffff00', '#00ff00', '#00ffff'];
-    for (let i = 0; i < 20; i++) {
-      newParticles.push({
-        x: x * CELL_SIZE,
-        y: y * CELL_SIZE,
-        vx: (Math.random() - 0.5) * 4,
-        vy: (Math.random() - 0.5) * 4,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        size: Math.random() * 4 + 2,
-        life: 1
-      });
-    }
-    setParticles(prev => [...prev, ...newParticles]);
-  };
-
   const updateGame = () => {
-    setSnake(prev => {
-      const newSnake = [...prev];
-      const head = { ...newSnake[0] };
-      switch (direction) {
-        case 'RIGHT': head.x += 1; break;
-        case 'LEFT': head.x -= 1; break;
-        case 'UP': head.y -= 1; break;
-        case 'DOWN': head.y += 1; break;
-      }
+    const currentDirection = directionRef.current;
+    const currentSnake = [...snakeRef.current];
+    const head = { ...currentSnake[0] };
 
-      if (
-        head.x < 0 || head.x >= GRID_SIZE ||
-        head.y < 0 || head.y >= GRID_SIZE ||
-        newSnake.some(segment => segment.x === head.x && segment.y === head.y)
-      ) {
-        setGameOver(true);
-        setGameStarted(false);
-        return prev;
-      }
-
-      newSnake.unshift(head);
-      const foodEatenIndex = food.findIndex(f => f.x === head.x && f.y === head.y);
-      if (foodEatenIndex !== -1) {
-        setScore(prevScore => prevScore + 5); // +5 par fruit
-        setFood(prev => {
-          const newFood = [...prev];
-          newFood.splice(foodEatenIndex, 1);
-          return newFood;
-        });
-      } else {
-        newSnake.pop();
-      }
-
-      return newSnake;
-    });
-
-    setEnemies(prev => {
-      let newEnemies = prev.map(enemy => {
-        const newSegments = [...enemy.segments];
-        const head = { ...newSegments[0] };
-        let newDirection = enemy.direction;
-        let directionFrames = enemy.directionFrames - 1;
-
-        if (directionFrames <= 0) {
-          const closestFood = food.length > 0 ? food[Math.floor(Math.random() * food.length)] : { x: head.x, y: head.y };
-          const dx = closestFood.x - head.x;
-          const dy = closestFood.y - head.y;
-
-          const possibleDirections = ['UP', 'DOWN', 'LEFT', 'RIGHT'].filter(dir => {
-            const testHead = { x: head.x, y: head.y };
-            switch (dir) {
-              case 'RIGHT': testHead.x += 1; break;
-              case 'LEFT': testHead.x -= 1; break;
-              case 'UP': testHead.y -= 1; break;
-              case 'DOWN': testHead.y += 1; break;
-            }
-            return dir !== oppositeDirection(enemy.direction) &&
-                   testHead.x > 1 && testHead.x < GRID_SIZE - 2 &&
-                   testHead.y > 1 && testHead.y < GRID_SIZE - 2;
-          });
-
-          if (Math.random() < 0.7 && food.length > 0) {
-            if (Math.abs(dx) > Math.abs(dy)) {
-              newDirection = dx > 0 ? 'RIGHT' : 'LEFT';
-            } else {
-              newDirection = dy > 0 ? 'DOWN' : 'UP';
-            }
-            if (!possibleDirections.includes(newDirection)) {
-              newDirection = possibleDirections[Math.floor(Math.random() * possibleDirections.length)] as 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
-            }
-          } else {
-            newDirection = possibleDirections[Math.floor(Math.random() * possibleDirections.length)] as 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
-          }
-          directionFrames = Math.floor(Math.random() * 4) + 2;
-        }
-
-        const nextHead = { x: head.x, y: head.y };
-        switch (newDirection) {
-          case 'RIGHT': nextHead.x += 1; break;
-          case 'LEFT': nextHead.x -= 1; break;
-          case 'UP': nextHead.y -= 1; break;
-          case 'DOWN': nextHead.y += 1; break;
-        }
-
-        if (snake.some(seg => seg.x === nextHead.x && seg.y === nextHead.y)) {
-          const safeDirections = ['UP', 'DOWN', 'LEFT', 'RIGHT'].filter(dir => {
-            const testHead = { x: head.x, y: head.y };
-            switch (dir) {
-              case 'RIGHT': testHead.x += 1; break;
-              case 'LEFT': testHead.x -= 1; break;
-              case 'UP': testHead.y -= 1; break;
-              case 'DOWN': testHead.y += 1; break;
-            }
-            return !snake.some(seg => seg.x === testHead.x && seg.y === testHead.y) &&
-                   testHead.x > 1 && testHead.x < GRID_SIZE - 2 &&
-                   testHead.y > 1 && testHead.y < GRID_SIZE - 2;
-          });
-          if (safeDirections.length > 0) {
-            newDirection = safeDirections[Math.floor(Math.random() * safeDirections.length)] as 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
-            directionFrames = Math.floor(Math.random() * 4) + 2;
-          }
-        }
-
-        switch (newDirection) {
-          case 'RIGHT': head.x += 1; break;
-          case 'LEFT': head.x -= 1; break;
-          case 'UP': head.y -= 1; break;
-          case 'DOWN': head.y += 1; break;
-        }
-
-        if (head.x <= 1 || head.x >= GRID_SIZE - 2 || head.y <= 1 || head.y >= GRID_SIZE - 2) {
-          spawnDeathParticles(head.x, head.y);
-          return null;
-        }
-
-        newSegments.unshift(head);
-        const foodEatenIndex = food.findIndex(f => f.x === head.x && f.y === head.y);
-        if (foodEatenIndex !== -1) {
-          setFood(prev => {
-            const newFood = [...prev];
-            newFood.splice(foodEatenIndex, 1);
-            return newFood;
-          });
-          newSegments.push({ x: newSegments[newSegments.length - 1].x, y: newSegments[newSegments.length - 1].y });
-        } else {
-          newSegments.pop();
-        }
-
-        return { segments: newSegments, target: food.length > 0 ? food[0] : head, direction: newDirection, directionFrames };
-      }).filter(enemy => enemy !== null) as Enemy[];
-
-      for (let i = 0; i < newEnemies.length; i++) {
-        const enemy = newEnemies[i];
-        const enemyHead = enemy.segments[0];
-
-        if (snake.some(seg => seg.x === enemyHead.x && seg.y === enemyHead.y && seg !== snake[0])) {
-          setScore(prev => prev + 10 + enemy.segments.length); // +10 + longueur de l'ennemi
-          spawnDeathParticles(enemyHead.x, enemyHead.y);
-          newEnemies.splice(i, 1);
-          i--;
-          continue;
-        }
-
-        for (let j = 0; j < newEnemies.length; j++) {
-          if (i === j) continue;
-          const otherEnemy = newEnemies[j];
-          if (otherEnemy.segments.some(seg => seg.x === enemyHead.x && seg.y === enemyHead.y && seg !== otherEnemy.segments[0])) {
-            spawnDeathParticles(enemyHead.x, enemyHead.y);
-            newEnemies.splice(i, 1);
-            i--;
-            break;
-          }
-        }
-      }
-
-      if (Math.random() < 0.015 && newEnemies.length < 4) {
-        let newX: number;
-        let newY: number;
-        let validPosition = false;
-        do {
-          newX = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
-          newY = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
-          validPosition = !snake.some(segment => segment.x === newX && segment.y === newY) &&
-                          !newEnemies.some(enemy => enemy.segments.some(seg => seg.x === newX && seg.y === newY));
-        } while (!validPosition);
-        const initialDirection = ['UP', 'DOWN', 'LEFT', 'RIGHT'][Math.floor(Math.random() * 4)] as 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
-        newEnemies.push({
-          segments: [
-            { x: newX, y: newY },
-            { x: newX - (initialDirection === 'RIGHT' ? 1 : initialDirection === 'LEFT' ? -1 : 0), 
-              y: newY - (initialDirection === 'DOWN' ? 1 : initialDirection === 'UP' ? -1 : 0) }
-          ],
-          target: food.length > 0 ? { x: food[0].x, y: food[0].y } : { x: newX, y: newY },
-          direction: initialDirection,
-          directionFrames: Math.floor(Math.random() * 4) + 2
-        });
-      }
-
-      return newEnemies;
-    });
-
-    if (food.length === 0 || (Math.random() < 0.015 && food.length < 3)) {
-      spawnNewFood(snake, enemies);
+    switch (currentDirection) {
+      case 'RIGHT': head.x += 1; break;
+      case 'LEFT': head.x -= 1; break;
+      case 'UP': head.y -= 1; break;
+      case 'DOWN': head.y += 1; break;
     }
+
+    if (
+      head.x < 0 || head.x >= GRID_SIZE ||
+      head.y < 0 || head.y >= GRID_SIZE ||
+      currentSnake.some(segment => segment.x === head.x && segment.y === head.y)
+    ) {
+      setGameOver(true);
+      setGameStarted(false);
+      const newRecord = Math.max(recordRef.current, score);
+      recordRef.current = newRecord;
+      setRecord(newRecord);
+      setCookie('snakeRecord', newRecord.toString());
+      isFirstGameRef.current = false;
+      console.log('Fin de partie - Score:', score, 'Record final:', newRecord);
+      return;
+    }
+
+    currentSnake.unshift(head);
+
+    if (foodRef.current && head.x === foodRef.current.x && head.y === foodRef.current.y) {
+      setScore(prev => {
+        const newScore = prev + 1;
+        console.log('Nourriture mangée - Nouveau score:', newScore, 'Record actuel:', recordRef.current);
+        if (isFirstGameRef.current) {
+          recordRef.current = newScore;
+          setRecord(newScore);
+          console.log('Première partie - Record mis à jour à:', newScore);
+        } else if (newScore > recordRef.current) {
+          recordRef.current = newScore;
+          setRecord(newScore);
+          console.log('Record dépassé - Nouveau record:', newScore);
+        }
+        return newScore;
+      });
+      spawnNewFood(currentSnake);
+    } else {
+      currentSnake.pop();
+    }
+
+    snakeRef.current = currentSnake;
+    setSnake([...currentSnake]);
   };
 
-  const oppositeDirection = (dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
-    switch (dir) {
-      case 'UP': return 'DOWN';
-      case 'DOWN': return 'UP';
-      case 'LEFT': return 'RIGHT';
-      case 'RIGHT': return 'LEFT';
-    }
-  };
-
-  const spawnNewFood = (snakeBody: {x: number, y: number}[], enemyList: Enemy[]) => {
-    let newX: number;
-    let newY: number;
+  const spawnNewFood = (snakeBody: { x: number; y: number }[]) => {
+    let newX = Math.floor(Math.random() * GRID_SIZE);
+    let newY = Math.floor(Math.random() * GRID_SIZE);
     let validPosition = false;
 
     while (!validPosition) {
-      newX = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
-      newY = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
-      validPosition = !snakeBody.some(segment => segment.x === newX && segment.y === newY) &&
-                      !enemyList.some(enemy => enemy.segments.some(seg => seg.x === newX && seg.y === newY)) &&
-                      !food.some(f => f.x === newX && f.y === newY);
+      newX = Math.floor(Math.random() * GRID_SIZE);
+      newY = Math.floor(Math.random() * GRID_SIZE);
+      validPosition = !snakeBody.some(segment => segment.x === newX && segment.y === newY);
     }
 
-    setFood(prev => [...prev, { x: newX, y: newY }]);
+    const newFood = { x: newX, y: newY };
+    foodRef.current = newFood;
+    setFood(newFood);
   };
 
   useEffect(() => {
     if (gameStarted && !gameOver) {
       requestRef.current = requestAnimationFrame(gameLoop);
-      // Forcer le focus sur le conteneur du jeu quand il démarre
       if (gameContainerRef.current) {
         gameContainerRef.current.focus();
       }
@@ -460,54 +313,55 @@ export default function Home() {
     }
   }, [gameStarted, gameOver]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gameStarted || gameOver || !showSnake) return;
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!gameStarted || gameOver || !showSnake) return;
 
-      console.log(`Key pressed: ${e.key}`); // Debug pour vérifier les touches
+    e.preventDefault();
 
-      switch (e.key) {
-        case 'ArrowUp':
-          if (direction !== 'DOWN') {
-            e.preventDefault();
-            setDirection('UP');
-          }
-          break;
-        case 'ArrowDown':
-          if (direction !== 'UP') {
-            e.preventDefault();
-            setDirection('DOWN');
-          }
-          break;
-        case 'ArrowLeft':
-          if (direction !== 'RIGHT') {
-            e.preventDefault();
-            setDirection('LEFT');
-          }
-          break;
-        case 'ArrowRight':
-          if (direction !== 'LEFT') {
-            e.preventDefault();
-            setDirection('RIGHT');
-          }
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameStarted, gameOver, direction, showSnake]);
+    switch (e.key) {
+      case 'ArrowUp':
+        if (directionRef.current !== 'DOWN') {
+          directionRef.current = 'UP';
+          setDirection('UP');
+        }
+        break;
+      case 'ArrowDown':
+        if (directionRef.current !== 'UP') {
+          directionRef.current = 'DOWN';
+          setDirection('DOWN');
+        }
+        break;
+      case 'ArrowLeft':
+        if (directionRef.current !== 'RIGHT') {
+          directionRef.current = 'LEFT';
+          setDirection('LEFT');
+        }
+        break;
+      case 'ArrowRight':
+        if (directionRef.current !== 'LEFT') {
+          directionRef.current = 'RIGHT';
+          setDirection('RIGHT');
+        }
+        break;
+    }
+  };
 
   const restartGame = () => {
+    console.log('Avant restart - Score:', score, 'Record:', recordRef.current);
     setGameOver(false);
-    setScore(0);
-    setSnake([{ x: 15, y: 15 }]);
-    setFood([{ x: 20, y: 20 }]);
-    setEnemies([]);
-    setParticles([]);
+    setScore(0); // Réinitialise uniquement le score
+    const initialSnake = [{ x: 10, y: 10 }];
+    snakeRef.current = initialSnake;
+    setSnake(initialSnake);
     setDirection('RIGHT');
+    directionRef.current = 'RIGHT';
     setLastUpdateTime(0);
+    spawnNewFood(initialSnake);
     setGameStarted(true);
+    if (gameContainerRef.current) {
+      gameContainerRef.current.focus();
+    }
+    console.log('Après restart - Score:', 0, 'Record maintenu à:', recordRef.current);
   };
 
   const getSnakeTexture = (index: number, isHead: boolean) => {
@@ -517,14 +371,6 @@ export default function Home() {
       return "bg-gradient-to-r from-teal-400 to-teal-500";
     } else {
       return "bg-gradient-to-l from-teal-500 to-teal-400";
-    }
-  };
-
-  const getEnemyTexture = (index: number, isHead: boolean) => {
-    if (isHead) {
-      return "bg-gradient-to-r from-red-500 to-orange-500 shadow-md";
-    } else {
-      return "bg-orange-400";
     }
   };
 
@@ -650,16 +496,18 @@ export default function Home() {
       {showSnake && (
         <div 
           ref={gameContainerRef} 
-          tabIndex={0} // Permet au div d’être focusable
+          tabIndex={0} 
+          onKeyDown={handleKeyDown}
+          onClick={() => gameContainerRef.current?.focus()}
           className="relative bg-white/10 backdrop-blur-lg rounded-xl p-5 w-[520px] flex flex-col items-center focus:outline-none"
         >
           <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-500 to-teal-500 px-4 py-1 rounded-full text-white font-sans font-bold text-base shadow-md">
-            Score: {score}
+            Score: {score} | Record: {record}
           </div>
           <div className="relative w-[500px] h-[500px] bg-gray-800/80 rounded-lg overflow-hidden border-4 border-teal-500 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
             <div className="absolute inset-0 bg-gray-800">
-              <div className="absolute inset-0 grid grid-cols-30 grid-rows-30 opacity-30 pointer-events-none">
-                {Array.from({ length: 900 }).map((_, i) => (
+              <div className="absolute inset-0 grid grid-cols-20 grid-rows-20 opacity-30 pointer-events-none">
+                {Array.from({ length: 400 }).map((_, i) => (
                   <div key={i} className="border-[0.5px] border-white/30" />
                 ))}
               </div>
@@ -667,8 +515,8 @@ export default function Home() {
 
             {snake.map((segment, i) => (
               <div
-                key={`segment-${i}`}
-                className={`absolute w-4 h-4 ${getSnakeTexture(i, i === 0)} rounded-md ${i === 0 ? 'z-10' : ''}`}
+                key={`segment-${i}-${segment.x}-${segment.y}`}
+                className={`absolute w-6 h-6 ${getSnakeTexture(i, i === 0)} rounded-md ${i === 0 ? 'z-10' : ''}`}
                 style={{
                   transform: `translate3d(${segment.x * CELL_SIZE}px, ${segment.y * CELL_SIZE}px, 0)`,
                   transition: 'transform 0.02s linear'
@@ -676,80 +524,27 @@ export default function Home() {
               >
                 {i === 0 && (
                   <>
-                    <div className="absolute w-1.5 h-1.5 rounded-full bg-black top-0.5 left-0.5"></div>
-                    <div className="absolute w-1.5 h-1.5 rounded-full bg-black top-0.5 right-0.5"></div>
+                    <div className="absolute w-2 h-2 rounded-full bg-black top-1 left-1"></div>
+                    <div className="absolute w-2 h-2 rounded-full bg-black top-1 right-1"></div>
                   </>
                 )}
               </div>
             ))}
 
-            {enemies.map((enemy, i) => (
-              <motion.div
-                key={`enemy-${i}`}
-                className="absolute"
-                initial={{ scale: 1 }}
-                exit={{
-                  scale: 0,
-                  opacity: 0,
-                  transition: { duration: 0.2 }
-                }}
-                animate={{ scale: 1 }}
-              >
-                {enemy.segments.map((seg, j) => (
-                  <div
-                    key={`enemy-${i}-${j}`}
-                    className={`absolute w-4 h-4 ${getEnemyTexture(j, j === 0)} rounded-md`}
-                    style={{
-                      transform: `translate3d(${seg.x * CELL_SIZE}px, ${seg.y * CELL_SIZE}px, 0)`,
-                      transition: 'transform 0.02s linear'
-                    }}
-                  >
-                    {j === 0 && (
-                      <>
-                        <div className="absolute w-1 h-1 rounded-full bg-white/70 top-0.5 right-0.5"></div>
-                        <div className="absolute w-1 h-1 rounded-full bg-white/70 top-0.5 left-0.5"></div>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </motion.div>
-            ))}
-
-            {particles.map((p, i) => (
-              <motion.div
-                key={`particle-${i}`}
-                className="absolute rounded-full"
+            {food && (
+              <div
+                className="absolute w-6 h-6 bg-red-500 rounded-full animate-pulse shadow-lg border border-white/50"
                 style={{
-                  width: p.size,
-                  height: p.size,
-                  backgroundColor: p.color,
-                  transform: `translate3d(${p.x}px, ${p.y}px, 0)`,
-                }}
-                animate={{
-                  opacity: [1, 0],
-                  scale: [1, 0.5],
-                  transition: { duration: p.life }
+                  transform: `translate3d(${food.x * CELL_SIZE}px, ${food.y * CELL_SIZE}px, 0)`,
+                  boxShadow: '0 0 8px rgba(255, 0, 0, 0.7)'
                 }}
               />
-            ))}
-
-            {food.map((f, i) => (
-              <div
-                key={`food-${i}`}
-                className="absolute w-4 h-4 bg-gradient-to-br from-red-500 via-yellow-400 to-green-500 rounded-full animate-pulse shadow-lg border border-white/50"
-                style={{
-                  transform: `translate3d(${f.x * CELL_SIZE}px, ${f.y * CELL_SIZE}px, 0)`,
-                  boxShadow: '0 0 8px rgba(255, 0, 0, 0.7), inset 0 0 4px rgba(255, 255, 255, 0.5)'
-                }}
-              >
-                <div className="absolute w-1 h-1 bg-white/80 rounded-full top-1 left-1"></div>
-              </div>
-            ))}
+            )}
 
             {gameOver && (
               <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20">
                 <h2 className="text-3xl font-bold text-white mb-4">Game Over!</h2>
-                <p className="text-xl text-teal-400 mb-8">Score: {score}</p>
+                <p className="text-xl text-teal-400 mb-8">Score: {score} | Record: {record}</p>
                 <button
                   onClick={restartGame}
                   className="px-6 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-teal-500 text-white font-bold hover:shadow-lg hover:shadow-blue-500/20 hover:scale-105 transition-all duration-300"
@@ -761,11 +556,14 @@ export default function Home() {
 
             {!gameStarted && !gameOver && (
               <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-20">
-                <h2 className="text-3xl font-bold text-white mb-4">Snake Game</h2>
-                <p className="text-md text-gray-300 mb-2">Utilisez les flèches du clavier pour vous déplacer</p>
-                <p className="text-md text-gray-300 mb-8">Mangez les fruits et évitez les ennemis</p>
+                <h2 className="text-3xl font-bold text-white mb-4">Snake</h2>
+                <p className="text-md text-gray-300 mb-8">Utilisez les flèches pour jouer</p>
                 <button
-                  onClick={() => { restartGame(); setGameStarted(true); }}
+                  onClick={() => { 
+                    restartGame(); 
+                    setGameStarted(true); 
+                    if (gameContainerRef.current) gameContainerRef.current.focus();
+                  }}
                   className="px-6 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-teal-500 text-white font-bold hover:shadow-lg hover:shadow-blue-500/20 hover:scale-105 transition-all duration-300"
                 >
                   Commencer

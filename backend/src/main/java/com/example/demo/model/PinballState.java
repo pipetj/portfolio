@@ -1,44 +1,55 @@
 package com.example.demo.model;
 
 public class PinballState {
-    private double ballX = 760;  // Position initiale ajustée pour Phaser
-    private double ballY = 550;
+    // Game dimensions
+    private static final int GAME_WIDTH = 400;
+    private static final int GAME_HEIGHT = 800;
+
+    // Ball position and speed
+    private double ballX = 387.5; // Initial position on launcher
+    private double ballY = 630;   // Initial position on launcher
     private double ballSpeedX = 0;
     private double ballSpeedY = 0;
+    private double ballRadius = 10; // Ball radius for collisions
 
-    private boolean leftFlipperUp = false;
-    private boolean rightFlipperUp = false;
-    private boolean upperLeftFlipperUp = false;
+    // Flipper angles
+    private double leftFlipperAngle = 30;    // Rest angle
+    private double rightFlipperAngle = -30;  // Rest angle
+    private final double leftFlipperUpAngle = -10;
+    private final double leftFlipperDownAngle = 30;
+    private final double rightFlipperUpAngle = 10;
+    private final double rightFlipperDownAngle = -30;
 
+    // Flipper positions
+    private final double leftFlipperX = 140;
+    private final double leftFlipperY = 650;
+    private final double rightFlipperX = 260;
+    private final double rightFlipperY = 650;
+
+    // Bumper positions
+    private final double[] bumperX = {GAME_WIDTH * 0.40, GAME_WIDTH * 0.60, GAME_WIDTH * 0.35, GAME_WIDTH * 0.50, GAME_WIDTH * 0.65};
+    private final double[] bumperY = {GAME_HEIGHT * 0.35, GAME_HEIGHT * 0.35, GAME_HEIGHT * 0.45, GAME_HEIGHT * 0.45, GAME_HEIGHT * 0.45};
+    private final double bumperRadius = 15;
+
+    // Target positions
+    private final double[] targetX = {GAME_WIDTH * 0.35, GAME_WIDTH * 0.50, GAME_WIDTH * 0.65};
+    private final double[] targetY = {GAME_HEIGHT * 0.25, GAME_HEIGHT * 0.25, GAME_HEIGHT * 0.25};
+    private final double targetRadius = 20;
+
+    // Slingshot positions
+    private final double[] slingshotX = {110, 290};
+    private final double[] slingshotY = {550, 550};
+    private final double slingshotWidth = 50;
+    private final double slingshotHeight = 150;
+
+    // Game state
     private int score = 0;
     private boolean isLaunching = true;
+    private boolean gameOver = false;
+    private int ballsLeft = 3;
+    private int stuckCounter = 0;
 
-    private boolean[] bumpersHit = new boolean[3];
-    private boolean[] fixedTargetsHit = new boolean[2];
-    private boolean[] dropTargetsHit = new boolean[3];
-    private boolean holeActive = false;
-    private int spinnerRotation = 0;
-    private boolean stopperActive = false;
-    private long stopperActivationTime = 0;
-
-    // Constructeur
-    public PinballState() {
-        this.ballX = 760;
-        this.ballY = 550;
-        this.ballSpeedX = 0;
-        this.ballSpeedY = 0;
-        this.score = 0;
-        this.isLaunching = true;
-        this.bumpersHit = new boolean[]{false, false, false}; // 3 bumpers
-        this.fixedTargetsHit = new boolean[]{false, false}; // 2 cibles fixes
-        this.dropTargetsHit = new boolean[]{false, false, false}; // 3 cibles tombantes
-        this.holeActive = false;
-        this.spinnerRotation = 0;
-        this.stopperActive = false;
-        this.stopperActivationTime = 0;
-    }
-
-    // Getters et setters
+    // Getters and Setters
     public double getBallX() {
         return ballX;
     }
@@ -71,28 +82,20 @@ public class PinballState {
         this.ballSpeedY = ballSpeedY;
     }
 
-    public boolean isLeftFlipperUp() {
-        return leftFlipperUp;
+    public double getLeftFlipperAngle() {
+        return leftFlipperAngle;
     }
 
-    public void setLeftFlipperUp(boolean leftFlipperUp) {
-        this.leftFlipperUp = leftFlipperUp;
+    public void setLeftFlipperAngle(double leftFlipperAngle) {
+        this.leftFlipperAngle = leftFlipperAngle;
     }
 
-    public boolean isRightFlipperUp() {
-        return rightFlipperUp;
+    public double getRightFlipperAngle() {
+        return rightFlipperAngle;
     }
 
-    public void setRightFlipperUp(boolean rightFlipperUp) {
-        this.rightFlipperUp = rightFlipperUp;
-    }
-
-    public boolean isUpperLeftFlipperUp() {
-        return upperLeftFlipperUp;
-    }
-
-    public void setUpperLeftFlipperUp(boolean upperLeftFlipperUp) {
-        this.upperLeftFlipperUp = upperLeftFlipperUp;
+    public void setRightFlipperAngle(double rightFlipperAngle) {
+        this.rightFlipperAngle = rightFlipperAngle;
     }
 
     public int getScore() {
@@ -107,63 +110,111 @@ public class PinballState {
         return isLaunching;
     }
 
-    public void setLaunching(boolean launching) {
-        isLaunching = launching;
+    public void setLaunching(boolean isLaunching) {
+        this.isLaunching = isLaunching;
     }
 
-    public boolean[] getBumpersHit() {
-        return bumpersHit;
+    public double getBallRadius() {
+        return ballRadius;
     }
 
-    public void setBumpersHit(boolean[] bumpersHit) {
-        this.bumpersHit = bumpersHit;
+    public double getLeftFlipperX() {
+        return leftFlipperX;
     }
 
-    public boolean[] getFixedTargetsHit() {
-        return fixedTargetsHit;
+    public double getLeftFlipperY() {
+        return leftFlipperY;
     }
 
-    public void setFixedTargetsHit(boolean[] fixedTargetsHit) {
-        this.fixedTargetsHit = fixedTargetsHit;
+    public double getRightFlipperX() {
+        return rightFlipperX;
     }
 
-    public boolean[] getDropTargetsHit() {
-        return dropTargetsHit;
+    public double getRightFlipperY() {
+        return rightFlipperY;
     }
 
-    public void setDropTargetsHit(boolean[] dropTargetsHit) {
-        this.dropTargetsHit = dropTargetsHit;
+    public double getLeftFlipperUpAngle() {
+        return leftFlipperUpAngle;
     }
 
-    public boolean isHoleActive() {
-        return holeActive;
+    public double getLeftFlipperDownAngle() {
+        return leftFlipperDownAngle;
     }
 
-    public void setHoleActive(boolean holeActive) {
-        this.holeActive = holeActive;
+    public double getRightFlipperUpAngle() {
+        return rightFlipperUpAngle;
     }
 
-    public int getSpinnerRotation() {
-        return spinnerRotation;
+    public double getRightFlipperDownAngle() {
+        return rightFlipperDownAngle;
     }
 
-    public void setSpinnerRotation(int spinnerRotation) {
-        this.spinnerRotation = spinnerRotation;
+    public double[] getBumperX() {
+        return bumperX;
     }
 
-    public boolean isStopperActive() {
-        return stopperActive;
+    public double[] getBumperY() {
+        return bumperY;
     }
 
-    public void setStopperActive(boolean stopperActive) {
-        this.stopperActive = stopperActive;
+    public double getBumperRadius() {
+        return bumperRadius;
     }
 
-    public long getStopperActivationTime() {
-        return stopperActivationTime;
+    public double[] getTargetX() {
+        return targetX;
     }
 
-    public void setStopperActivationTime(long stopperActivationTime) {
-        this.stopperActivationTime = stopperActivationTime;
+    public double[] getTargetY() {
+        return targetY;
+    }
+
+    public double getTargetRadius() {
+        return targetRadius;
+    }
+
+    public double[] getSlingshotX() {
+        return slingshotX;
+    }
+
+    public double[] getSlingshotY() {
+        return slingshotY;
+    }
+
+    public double getSlingshotWidth() {
+        return slingshotWidth;
+    }
+
+    public double getSlingshotHeight() {
+        return slingshotHeight;
+    }
+
+    public boolean isGameOver() {
+        return gameOver;
+    }
+
+    public void setGameOver(boolean gameOver) {
+        this.gameOver = gameOver;
+    }
+
+    public int getBallsLeft() {
+        return ballsLeft;
+    }
+
+    public void setBallsLeft(int ballsLeft) {
+        this.ballsLeft = ballsLeft;
+    }
+
+    public int getStuckCounter() {
+        return stuckCounter;
+    }
+
+    public void incrementStuckCounter() {
+        stuckCounter++;
+    }
+
+    public void resetStuckCounter() {
+        stuckCounter = 0;
     }
 }

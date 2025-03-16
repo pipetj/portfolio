@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import PyProject from '../PyProject/page'; // Importez directement le composant PyProject
-import RobotObject from '../RobotObject/page'; // Nouvelle importation pour RobotObject
+import { useEffect, useState, useRef } from "react";
+import PyProject from '../PyProject/page';
+import RobotObject from '../RobotObject/page';
 
 // Interfaces
 interface WindowItem {
@@ -11,6 +11,7 @@ interface WindowItem {
   minimized: boolean;
   maximized?: boolean;
   linkedDetailId?: number;
+  position?: { x: number; y: number };
 }
 
 interface Project {
@@ -30,6 +31,7 @@ export default function LoginPage() {
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [showStartMenu, setShowStartMenu] = useState(false);
   const username = "Pipet Jordan";
+  const dragRef = useRef<{ id: number | null; offsetX: number; offsetY: number }>({ id: null, offsetX: 0, offsetY: 0 });
 
   // Mise à jour de l'heure en temps réel
   useEffect(() => {
@@ -85,7 +87,16 @@ export default function LoginPage() {
   };
 
   const openWindow = (type: string, linkedDetailId?: number) => {
-    setWindows(prev => [...prev, { id: Date.now(), type, minimized: false, maximized: false, linkedDetailId }]);
+    const centerX = (window.innerWidth - 800) / 2; // 800 = largeur estimée de la fenêtre
+    const centerY = (window.innerHeight - 600) / 2; // 600 = hauteur estimée
+    setWindows(prev => [...prev, {
+      id: Date.now(),
+      type,
+      minimized: false,
+      maximized: false,
+      linkedDetailId,
+      position: { x: centerX > 0 ? centerX : 100, y: centerY > 0 ? centerY : 100 }
+    }]);
   };
 
   const closeWindow = (id: number) => {
@@ -141,16 +152,47 @@ export default function LoginPage() {
 
   const handleBackgroundSave = (url: string) => {
     setBackgroundImage(url);
-    document.cookie = `backgroundImage=${url}; max-age=${60 * 60 * 24 * 30}`; // Cookie valide 30 jours
+    document.cookie = `backgroundImage=${url}; max-age=${60 * 60 * 24 * 30}`;
   };
 
   const handleLogout = () => {
     setShowStartMenu(false);
     setStage("shutdown");
     setTimeout(() => {
-      setStage("connexion");
-      setWindows([]);
+      window.location.href = "/";
     }, 3000);
+  };
+
+  const startDragging = (e: React.MouseEvent, id: number) => {
+    const windowObj = windows.find(w => w.id === id);
+    if (windowObj && !windowObj.maximized) {
+      dragRef.current = {
+        id,
+        offsetX: e.clientX - (windowObj.position?.x || 0),
+        offsetY: e.clientY - (windowObj.position?.y || 0),
+      };
+      e.preventDefault();
+    }
+  };
+
+  const stopDragging = () => {
+    dragRef.current.id = null;
+  };
+
+  const onDrag = (e: React.MouseEvent) => {
+    if (dragRef.current.id !== null) {
+      const newX = e.clientX - dragRef.current.offsetX;
+      const newY = e.clientY - dragRef.current.offsetY;
+      const boundedX = Math.max(0, Math.min(newX, window.innerWidth - 800));
+      const boundedY = Math.max(0, Math.min(newY, window.innerHeight - 600));
+      setWindows(prev =>
+        prev.map(w =>
+          w.id === dragRef.current.id
+            ? { ...w, position: { x: boundedX, y: boundedY } }
+            : w
+        )
+      );
+    }
   };
 
   if (stage === "démarrage") {
@@ -574,17 +616,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="desktop-container" style={{ backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined }}>
+    <div className="desktop-container" style={{ backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined }} onMouseMove={onDrag} onMouseUp={stopDragging}>
       <div className="background-effects">
         <div className="bg-circle circle-1"></div>
         <div className="bg-circle circle-2"></div>
       </div>
 
       <div className="desktop-icons">
-        <div
-          className="icon-container"
-          onClick={(e) => handleIconClick(e, 'projets')}
-        >
+        <div className="icon-container" onClick={(e) => handleIconClick(e, 'projets')}>
           <div className="icon">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -593,10 +632,7 @@ export default function LoginPage() {
           <span className="icon-label">Projets</span>
         </div>
 
-        <div
-          className="icon-container"
-          onClick={(e) => handleIconClick(e, 'pyproject')}
-        >
+        <div className="icon-container" onClick={(e) => handleIconClick(e, 'pyproject')}>
           <div className="icon">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -605,10 +641,7 @@ export default function LoginPage() {
           <span className="icon-label">PyProject</span>
         </div>
 
-        <div
-          className="icon-container"
-          onClick={(e) => handleIconClick(e, 'robotobject')}
-        >
+        <div className="icon-container" onClick={(e) => handleIconClick(e, 'robotobject')}>
           <div className="icon">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 18v-2a4 4 0 00-8 0v2m-4-6h16M6 8h12a2 2 0 002-2V4a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z" />
@@ -617,10 +650,7 @@ export default function LoginPage() {
           <span className="icon-label">RobotObject</span>
         </div>
 
-        <div
-          className="icon-container"
-          onClick={(e) => handleIconClick(e, 'background')}
-        >
+        <div className="icon-container" onClick={(e) => handleIconClick(e, 'background')}>
           <div className="icon">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -633,8 +663,12 @@ export default function LoginPage() {
       {windows.map(window => (
         !window.minimized && (
           window.type === 'projets' ? (
-            <div key={window.id} className={`window ${window.maximized ? 'maximized' : ''}`}>
-              <div className="window-header">
+            <div
+              key={window.id}
+              className={`window ${window.maximized ? 'maximized' : ''}`}
+              style={!window.maximized ? { left: `${window.position?.x}px`, top: `${window.position?.y}px` } : undefined}
+            >
+              <div className="window-header" onMouseDown={(e) => startDragging(e, window.id)}>
                 <span>Projets - Pipet Jordan</span>
                 <div className="window-controls">
                   <button onClick={() => toggleMinimize(window.id)} className="control minimize">
@@ -664,10 +698,7 @@ export default function LoginPage() {
                           <h2>{project.title}</h2>
                           <p>{project.description}</p>
                         </div>
-                        <button
-                          onClick={() => openProjectDetails(project.id, window.id)}
-                          className="details-button"
-                        >
+                        <button onClick={() => openProjectDetails(project.id, window.id)} className="details-button">
                           Voir les Détails
                         </button>
                       </div>
@@ -679,8 +710,12 @@ export default function LoginPage() {
               </div>
             </div>
           ) : window.type === 'pyproject' ? (
-            <div key={window.id} className={`window ${window.maximized ? 'maximized' : ''}`}>
-              <div className="window-header">
+            <div
+              key={window.id}
+              className={`window ${window.maximized ? 'maximized' : ''}`}
+              style={!window.maximized ? { left: `${window.position?.x}px`, top: `${window.position?.y}px` } : undefined}
+            >
+              <div className="window-header" onMouseDown={(e) => startDragging(e, window.id)}>
                 <span>PyProject - Pipet Jordan</span>
                 <div className="window-controls">
                   <button onClick={() => toggleMinimize(window.id)} className="control minimize">
@@ -705,8 +740,12 @@ export default function LoginPage() {
               </div>
             </div>
           ) : window.type === 'robotobject' ? (
-            <div key={window.id} className={`window ${window.maximized ? 'maximized' : ''}`}>
-              <div className="window-header">
+            <div
+              key={window.id}
+              className={`window ${window.maximized ? 'maximized' : ''}`}
+              style={!window.maximized ? { left: `${window.position?.x}px`, top: `${window.position?.y}px` } : undefined}
+            >
+              <div className="window-header" onMouseDown={(e) => startDragging(e, window.id)}>
                 <span>RobotObject - Pipet Jordan</span>
                 <div className="window-controls">
                   <button onClick={() => toggleMinimize(window.id)} className="control minimize">
@@ -731,8 +770,12 @@ export default function LoginPage() {
               </div>
             </div>
           ) : window.type === 'background' ? (
-            <div key={window.id} className={`window ${window.maximized ? 'maximized' : ''}`}>
-              <div className="window-header">
+            <div
+              key={window.id}
+              className={`window ${window.maximized ? 'maximized' : ''}`}
+              style={!window.maximized ? { left: `${window.position?.x}px`, top: `${window.position?.y}px` } : undefined}
+            >
+              <div className="window-header" onMouseDown={(e) => startDragging(e, window.id)}>
                 <span>Paramètres du Fond d'écran</span>
                 <div className="window-controls">
                   <button onClick={() => toggleMinimize(window.id)} className="control minimize">
@@ -757,19 +800,30 @@ export default function LoginPage() {
                 <input
                   type="text"
                   placeholder="Entrez l'URL de l'image"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleBackgroundSave(e.currentTarget.value);
+                  className="background-input"
+                  id={`background-input-${window.id}`}
+                />
+                <button
+                  onClick={() => {
+                    const input = document.getElementById(`background-input-${window.id}`) as HTMLInputElement;
+                    if (input && input.value) {
+                      handleBackgroundSave(input.value);
                       closeWindow(window.id);
                     }
                   }}
-                  className="background-input"
-                />
+                  className="validate-button"
+                >
+                  Valider
+                </button>
               </div>
             </div>
           ) : (
-            <div key={window.id} className={`window detail-window ${windows.find(w => w.id === window.linkedDetailId)?.maximized ? 'maximized' : ''}`}>
-              <div className="window-header">
+            <div
+              key={window.id}
+              className={`window detail-window ${windows.find(w => w.id === window.linkedDetailId)?.maximized ? 'maximized' : ''}`}
+              style={!window.maximized ? { left: `${window.position?.x}px`, top: `${window.position?.y}px` } : undefined}
+            >
+              <div className="window-header" onMouseDown={(e) => startDragging(e, window.id)}>
                 <span>Détails du Projet - {projects.find(p => `projet-${p.id}` === window.type)?.title || 'Inconnu'}</span>
                 <div className="window-controls">
                   <button onClick={() => closeWindow(window.id)} className="control back">
@@ -930,18 +984,14 @@ export default function LoginPage() {
         }
         .window {
           position: absolute;
-          width: 80%;
-          max-width: 64rem;
-          min-height: 600px;
+          width: 800px;
+          height: 600px;
           background: rgba(255,255,255,0.1);
           backdrop-filter: blur(6px);
           border-radius: 0.25rem;
           box-shadow: 0 4px 8px rgba(0,0,0,0.2);
           border: 1px solid #2d2d2d;
           overflow: hidden;
-          left: 50%;
-          top: 50%;
-          transform: translate(-50%, -50%);
           z-index: 10;
           transition: all 0.3s ease;
         }
@@ -950,7 +1000,6 @@ export default function LoginPage() {
           height: calc(100vh - 3.5rem);
           top: 0;
           left: 0;
-          transform: none;
           border-radius: 0;
         }
         .detail-window {
@@ -966,6 +1015,7 @@ export default function LoginPage() {
           justify-content: space-between;
           border-bottom: 1px solid #a0a0a0;
           color: #000;
+          cursor: move;
         }
         .window-header span {
           font-weight: 400;
@@ -1179,6 +1229,17 @@ export default function LoginPage() {
           border: 1px solid rgba(255,255,255,0.2);
           border-radius: 0.25rem;
           color: white;
+        }
+        .validate-button {
+          margin-top: 1rem;
+          padding: 0.5rem 1rem;
+          background: #2563eb;
+          color: white;
+          border-radius: 0.25rem;
+          transition: background-color 0.3s;
+        }
+        .validate-button:hover {
+          background: #1d4ed8;
         }
       `}</style>
     </div>

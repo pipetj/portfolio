@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <!-- Gradient definitions -->
+  <defs>
+    <radialGradient id="ethereal1" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#3d0066" stop-opacity="0.9" />
+      <stop offset="70%" stop-color="#150033" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#070019" stop-opacity="0.9" />
+    </radialGradient>
+    <filter id="glow1">
+      <feGaussianBlur stdDeviation="0.3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- East-pointing equilateral triangle (>) -->
+  <polygon points="10,20 25,10 25,30" fill="url(#ethereal1)" stroke="#6633cc" stroke-width="0.5" stroke-opacity="0.6"/>
+  
+  <!-- Ethereal elements -->
+  <path d="M15,20 Q20,15 21,20 Q20,25 15,20" fill="#6633cc" fill-opacity="0.15" stroke="none"/>
+  <path d="M13,18 Q18,20 13,22" stroke="#9966ff" stroke-width="0.2" fill="none" stroke-opacity="0.4"/>
+  
+  <!-- Ethereal enhancement - cosmic geometry -->
+  <path d="M16,20 L20,16 L24,20 L20,24 Z" stroke="#aa66ff" stroke-width="0.15" fill="none" stroke-opacity="0.5"/>
+  <path d="M18,16 L18,24" stroke="#aa66ff" stroke-width="0.1" fill="none" stroke-opacity="0.3"/>
+  <path d="M22,16 L22,24" stroke="#aa66ff" stroke-width="0.1" fill="none" stroke-opacity="0.3"/>
+  <path d="M16,18 L24,18" stroke="#aa66ff" stroke-width="0.1" fill="none" stroke-opacity="0.3"/>
+  <path d="M16,22 L24,22" stroke="#aa66ff" stroke-width="0.1" fill="none" stroke-opacity="0.3"/>
+  
+  <!-- Stars -->
+  <circle cx="15" cy="17" r="0.3" fill="white" filter="url(#glow1)"/>
+  <circle cx="18" cy="20" r="0.25" fill="white" filter="url(#glow1)"/>
+  <circle cx="15" cy="23" r="0.2" fill="white" filter="url(#glow1)"/>
+  <circle cx="21" cy="15" r="0.25" fill="white" filter="url(#glow1)"/>
+  <circle cx="21" cy="25" r="0.2" fill="white" filter="url(#glow1)"/>
+</svg>
