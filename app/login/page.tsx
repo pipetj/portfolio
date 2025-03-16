@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import PyProject from '../PyProject/page';
 import RobotObject from '../RobotObject/page';
+import Pinball from '../pinball/page';
 
 // Interfaces
 interface WindowItem {
@@ -15,7 +16,7 @@ interface WindowItem {
 }
 
 interface Project {
-  id: string;
+  id: string; // UUID format supporté
   title: string;
   description: string;
   created_at: string;
@@ -26,14 +27,28 @@ export default function LoginPage() {
   const [stage, setStage] = useState<"démarrage" | "connexion" | "animationConnexion" | "bureau" | "shutdown">("démarrage");
   const [loading, setLoading] = useState<boolean>(false);
   const [windows, setWindows] = useState<WindowItem[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>([
+    {
+      id: "3763c6c8-c6d1-40cc-be5d-cca06771f0f9", // Exemple d'UUID
+      title: "CircuitSync",
+      description: "Un système de synchronisation de circuits électroniques pour optimiser les performances des microcontrôleurs. Intègre un logiciel de simulation en Python et une interface matérielle basée sur Arduino.",
+      created_at: "2024-01-15",
+      user_id: "pipetj",
+    },
+    {
+      id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", // Exemple d'UUID
+      title: "CodeBot",
+      description: "Un robot autonome programmé en C++ avec une IA pour la reconnaissance d’obstacles. Utilise des capteurs ultrasoniques et un algorithme de pathfinding inspiré des jeux vidéo.",
+      created_at: "2024-06-20",
+      user_id: "pipetj",
+    },
+  ]);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [showStartMenu, setShowStartMenu] = useState(false);
   const username = "Pipet Jordan";
   const dragRef = useRef<{ id: number | null; offsetX: number; offsetY: number }>({ id: null, offsetX: 0, offsetY: 0 });
 
-  // Mise à jour de l'heure en temps réel
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
@@ -41,7 +56,6 @@ export default function LoginPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Chargement du fond d'écran depuis les cookies
   useEffect(() => {
     const savedBackground = document.cookie.split('; ').find(row => row.startsWith('backgroundImage='))?.split('=')[1];
     if (savedBackground) setBackgroundImage(savedBackground);
@@ -66,12 +80,12 @@ export default function LoginPage() {
           return res.json();
         })
         .then((data: Project[]) => {
-          console.log("Projets récupérés avec succès :", data);
-          setProjects(data);
+          console.log("Projets récupérés :", data);
+          setProjects(data.length > 0 ? data : projects);
         })
         .catch(err => {
           console.error("Erreur lors de la récupération des projets :", err);
-          setProjects([]);
+          setProjects(projects); // Fallback aux projets statiques
         });
     }
   }, [stage]);
@@ -87,8 +101,8 @@ export default function LoginPage() {
   };
 
   const openWindow = (type: string, linkedDetailId?: number) => {
-    const centerX = (window.innerWidth - 800) / 2; // 800 = largeur estimée de la fenêtre
-    const centerY = (window.innerHeight - 600) / 2; // 600 = hauteur estimée
+    const centerX = (window.innerWidth - 800) / 2;
+    const centerY = (window.innerHeight - 600) / 2;
     setWindows(prev => [...prev, {
       id: Date.now(),
       type,
@@ -102,7 +116,7 @@ export default function LoginPage() {
   const closeWindow = (id: number) => {
     setWindows(prev => {
       const windowToClose = prev.find(w => w.id === id);
-      if (windowToClose?.type === 'projets' || windowToClose?.type === 'pyproject' || windowToClose?.type === 'robotobject' || windowToClose?.type === 'background') {
+      if (windowToClose?.type === 'projets' || windowToClose?.type === 'pyproject' || windowToClose?.type === 'robotobject' || windowToClose?.type === 'background' || windowToClose?.type === 'pinball') {
         return prev.filter(w => w.id !== id && w.linkedDetailId !== id);
       }
       return prev.filter(w => w.id !== id);
@@ -112,7 +126,7 @@ export default function LoginPage() {
   const toggleMinimize = (id: number) => {
     setWindows(prev => {
       const windowToToggle = prev.find(w => w.id === id);
-      if (windowToToggle?.type === 'projets' || windowToToggle?.type === 'pyproject' || windowToToggle?.type === 'robotobject' || windowToToggle?.type === 'background') {
+      if (windowToToggle?.type === 'projets' || windowToToggle?.type === 'pyproject' || windowToToggle?.type === 'robotobject' || windowToClose?.type === 'background' || windowToClose?.type === 'pinball') {
         return prev.map(w =>
           w.id === id || w.linkedDetailId === id
             ? { ...w, minimized: !w.minimized }
@@ -126,7 +140,7 @@ export default function LoginPage() {
   const toggleMaximize = (id: number) => {
     setWindows(prev => {
       const windowToToggle = prev.find(w => w.id === id);
-      if (windowToToggle?.type === 'projets' || windowToToggle?.type === 'pyproject' || windowToToggle?.type === 'robotobject' || windowToToggle?.type === 'background') {
+      if (windowToToggle?.type === 'projets' || windowToToggle?.type === 'pyproject' || windowToToggle?.type === 'robotobject' || windowToClose?.type === 'background' || windowToClose?.type === 'pinball') {
         return prev.map(w =>
           w.id === id || w.linkedDetailId === id
             ? { ...w, maximized: !w.maximized }
@@ -155,12 +169,26 @@ export default function LoginPage() {
     document.cookie = `backgroundImage=${url}; max-age=${60 * 60 * 24 * 30}`;
   };
 
+  const handleBackgroundReset = () => {
+    setBackgroundImage(null);
+    document.cookie = `backgroundImage=; max-age=0`; // Supprime le cookie
+  };
+
   const handleLogout = () => {
     setShowStartMenu(false);
     setStage("shutdown");
     setTimeout(() => {
       window.location.href = "/";
     }, 3000);
+  };
+
+  const handleDownloadCV = () => {
+    const link = document.createElement('a');
+    link.href = '/CV_Pipet_Jordan.pdf';
+    link.download = 'CV_Pipet_Jordan.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const startDragging = (e: React.MouseEvent, id: number) => {
@@ -297,7 +325,7 @@ export default function LoginPage() {
             <div className="avatar-container">
               <div className="avatar">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#4F46E5">
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path>
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                 </svg>
               </div>
             </div>
@@ -367,7 +395,7 @@ export default function LoginPage() {
             width: 24rem;
             background: rgba(255,255,255,0.1);
             backdrop-filter: blur(6px);
-            border-radius: 0.75rem;
+            border專家: 0.75rem;
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
             border: 1px solid rgba(255,255,255,0.2);
             overflow: hidden;
@@ -650,6 +678,15 @@ export default function LoginPage() {
           <span className="icon-label">RobotObject</span>
         </div>
 
+        <div className="icon-container" onClick={(e) => handleIconClick(e, 'pinball')}>
+          <div className="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 12H4m8-8v16M8 16l-4 4m12-4l4 4" />
+            </svg>
+          </div>
+          <span className="icon-label">Pinball</span>
+        </div>
+
         <div className="icon-container" onClick={(e) => handleIconClick(e, 'background')}>
           <div className="icon">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -689,7 +726,7 @@ export default function LoginPage() {
                 </div>
               </div>
               <div className="window-content wiki-style">
-                <h1>Projets</h1>
+                <h1>Mes Projets</h1>
                 {projects.length > 0 ? (
                   projects.map((project) => (
                     <div key={project.id} className="project-entry">
@@ -697,6 +734,7 @@ export default function LoginPage() {
                         <div className="project-text">
                           <h2>{project.title}</h2>
                           <p>{project.description}</p>
+                          <small>Créé le : {new Date(project.created_at).toLocaleDateString()}</small>
                         </div>
                         <button onClick={() => openProjectDetails(project.id, window.id)} className="details-button">
                           Voir les Détails
@@ -705,7 +743,7 @@ export default function LoginPage() {
                     </div>
                   ))
                 ) : (
-                  <p>Aucun projet disponible</p>
+                  <p>Aucun projet disponible pour le moment.</p>
                 )}
               </div>
             </div>
@@ -815,29 +853,97 @@ export default function LoginPage() {
                 >
                   Valider
                 </button>
+                <button
+                  onClick={() => {
+                    handleBackgroundReset();
+                    closeWindow(window.id);
+                  }}
+                  className="reset-button"
+                >
+                  Réinitialiser
+                </button>
               </div>
             </div>
-          ) : (
+          ) : window.type === 'pinball' ? (
             <div
               key={window.id}
-              className={`window detail-window ${windows.find(w => w.id === window.linkedDetailId)?.maximized ? 'maximized' : ''}`}
+              className={`window ${window.maximized ? 'maximized' : ''}`}
               style={!window.maximized ? { left: `${window.position?.x}px`, top: `${window.position?.y}px` } : undefined}
             >
               <div className="window-header" onMouseDown={(e) => startDragging(e, window.id)}>
-                <span>Détails du Projet - {projects.find(p => `projet-${p.id}` === window.type)?.title || 'Inconnu'}</span>
+                <span>Pinball - Pipet Jordan</span>
                 <div className="window-controls">
-                  <button onClick={() => closeWindow(window.id)} className="control back">
+                  <button onClick={() => toggleMinimize(window.id)} className="control minimize">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                      <path d="M19 13H5v-2h14v2z" />
+                    </svg>
+                  </button>
+                  <button onClick={() => toggleMaximize(window.id)} className="control maximize">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                      <path d={window.maximized ? "M5 16h14V8H5v8zm14 2H5a2 2 0 01-2-2V8a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2z" : "M5 19h14V5H5v14zm14 2H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z"} />
+                    </svg>
+                  </button>
+                  <button onClick={() => closeWindow(window.id)} className="control close">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                     </svg>
                   </button>
                 </div>
               </div>
               <div className="window-content">
-                <p>Les détails du projet seront ajoutés ici plus tard.</p>
+                <Pinball />
               </div>
             </div>
-          )
+          ) : window.type.startsWith('projet-') ? (
+            (() => {
+              const projectId = window.type.split('projet-')[1]; // Support pour UUID complet
+              const project = projects.find(p => p.id === projectId);
+
+              return (
+                <div
+                  key={window.id}
+                  className={`window detail-window tech-style ${windows.find(w => w.id === window.linkedDetailId)?.maximized ? 'maximized' : ''}`}
+                  style={!window.maximized ? { left: `${window.position?.x}px`, top: `${window.position?.y}px` } : undefined}
+                >
+                  <div className="window-header" onMouseDown={(e) => startDragging(e, window.id)}>
+                    <span>Détails du Projet - {project?.title || 'Inconnu'}</span>
+                    <div className="window-controls">
+                      <button onClick={() => closeWindow(window.id)} className="control back">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="window-content tech-content">
+                    <h2>{project?.title || 'Titre non disponible'}</h2>
+                    <p>{project?.description || 'Description non disponible'}</p>
+                    {project?.id === "3763c6c8-c6d1-40cc-be5d-cca06771f0f9" && (
+                      <div className="tech-details">
+                        <h3>Technologies utilisées :</h3>
+                        <ul>
+                          <li>Python - Simulation de circuits</li>
+                          <li>Arduino - Contrôle matériel</li>
+                          <li>I2C - Communication inter-composants</li>
+                        </ul>
+                      </div>
+                    )}
+                    {project?.id === "a1b2c3d4-e5f6-7890-abcd-ef1234567890" && (
+                      <div className="tech-details">
+                        <h3>Technologies utilisées :</h3>
+                        <ul>
+                          <li>C++ - Programmation embarquée</li>
+                          <li>Capteurs ultrasoniques - Détection</li>
+                          <li>Algorithme A* - Pathfinding</li>
+                        </ul>
+                      </div>
+                    )}
+                    <div className="circuit-overlay"></div>
+                  </div>
+                </div>
+              );
+            })()
+          ) : null
         )
       ))}
 
@@ -855,25 +961,33 @@ export default function LoginPage() {
               <span>{username}</span>
             </div>
             <div className="start-menu-content">
-              <a href="https://github.com/votre-profil" target="_blank" className="menu-item">
+              <a href="https://github.com/pipetj" target="_blank" className="menu-item">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
                 </svg>
                 GitHub
               </a>
-              <a href="https://linkedin.com/in/votre-profil" target="_blank" className="menu-item">
+              <a href="https://fr.linkedin.com/in/jordan-pipet-438943251" target="_blank" className="menu-item">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
-                  <rect x="2" y="9" width="4" height="12"></rect>
-                  <circle cx="4" cy="4" r="2"></circle>
+                  <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+                  <rect x="2" y="9" width="4" height="12" />
+                  <circle cx="4" cy="4" r="2" />
                 </svg>
                 LinkedIn
               </a>
+              <button onClick={handleDownloadCV} className="menu-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Télécharger CV
+              </button>
               <button onClick={handleLogout} className="menu-item logout">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                  <polyline points="16 17 21 12 16 7"></polyline>
-                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
                 Déconnexion
               </button>
@@ -892,18 +1006,24 @@ export default function LoginPage() {
                 window.type === 'pyproject' ? "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" :
                   window.type === 'robotobject' ? "M16 18v-2a4 4 0 00-8 0v2m-4-6h16M6 8h12a2 2 0 002-2V4a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z" :
                     window.type === 'background' ? "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" :
-                      "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                      window.type === 'pinball' ? "M20 12H4m8-8v16M8 16l-4 4m12-4l4 4" :
+                        "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
               } />
             </svg>
             {window.type === 'pyproject' ? 'PyProject' :
               window.type === 'robotobject' ? 'RobotObject' :
-                window.type === 'background' ? "Fond d'écran" : 'Projets'}
+                window.type === 'background' ? "Fond d'écran" :
+                  window.type === 'pinball' ? 'Pinball' : 'Projets'}
           </div>
         ))}
         <div className="system-tray">
           <span>{currentTime}</span>
         </div>
       </div>
+
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap');
+      `}</style>
 
       <style jsx>{`
         .desktop-container {
@@ -1003,9 +1123,61 @@ export default function LoginPage() {
           border-radius: 0;
         }
         .detail-window {
-          background: white;
-          border: 1px solid #2d2d2d;
           z-index: 11;
+        }
+        .tech-style {
+          background: #1a1a1a;
+          font-family: 'Roboto Mono', monospace;
+          border: 1px solid #00ffcc;
+          box-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+        }
+        .tech-content {
+          padding: 2rem;
+          position: relative;
+          color: #e0e0e0;
+          background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+        }
+        .tech-content h2 {
+          font-size: 2rem;
+          color: #00ffcc;
+          text-shadow: 0 0 5px #00ffcc;
+          margin-bottom: 1rem;
+        }
+        .tech-content p {
+          font-size: 1rem;
+          color: #e0e0e0;
+          margin-bottom: 2rem;
+        }
+        .tech-details {
+          margin-top: 1rem;
+        }
+        .tech-details h3 {
+          color: #ff007a;
+          font-size: 1.25rem;
+          margin-bottom: 0.5rem;
+        }
+        .tech-details ul {
+          list-style: none;
+          padding: 0;
+        }
+        .tech-details li {
+          color: #e0e0e0;
+          margin-bottom: 0.5rem;
+          position: relative;
+          padding-left: 1.5rem;
+        }
+        .tech-details li:before {
+          content: '>';
+          color: #00ffcc;
+          position: absolute;
+          left: 0;
+        }
+        .circuit-overlay {
+          position: absolute;
+          inset: 0;
+          background: url('https://via.placeholder.com/800x600?text=Circuit+Pattern') center/cover;
+          opacity: 0.05;
+          z-index: -1;
         }
         .window-header {
           background: #e1e1e1;
@@ -1043,41 +1215,43 @@ export default function LoginPage() {
           height: 1rem;
           color: #000;
         }
-        .close {
+        .close, .back {
           background: #c42b1c;
           border-color: #a02316;
         }
-        .close:hover {
+        .close:hover, .back:hover {
           background: #a02316;
         }
-        .close svg {
+        .close svg, .back svg {
           color: white;
         }
         .window-content {
           padding: 1.5rem;
           height: calc(100% - 2.5rem);
           overflow-y: auto;
-          color: white;
+          color: #000;
+          background: #f0f0f0;
         }
         .wiki-style {
-          background: linear-gradient(to bottom right, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
-          border: 1px solid rgba(255,255,255,0.1);
+          background: #fff;
+          color: #000;
+          border: 1px solid #ccc;
           border-radius: 0.25rem;
           padding: 1.25rem;
           min-height: 100%;
         }
         .wiki-style h1 {
           font-size: 1.5rem;
-          color: white;
+          color: #000;
           font-weight: 700;
           margin-bottom: 1rem;
-          border-bottom: 1px solid rgba(255,255,255,0.2);
+          border-bottom: 1px solid #ccc;
           padding-bottom: 0.5rem;
         }
         .project-entry {
           margin-bottom: 1.5rem;
           padding-bottom: 1.5rem;
-          border-bottom: 1px solid rgba(255,255,255,0.1);
+          border-bottom: 1px solid #ccc;
         }
         .project-entry:last-child {
           border-bottom: none;
@@ -1093,13 +1267,17 @@ export default function LoginPage() {
         }
         .project-entry h2 {
           font-size: 1.25rem;
-          color: #60a5fa;
+          color: #2563eb;
           font-weight: 600;
           margin-bottom: 0.5rem;
         }
         .project-entry p {
-          color: rgba(255,255,255,0.9);
-          margin-bottom: 0;
+          color: #000;
+          margin-bottom: 0.25rem;
+        }
+        .project-entry small {
+          color: #666;
+          font-size: 0.75rem;
         }
         .details-button {
           padding: 0.5rem 1rem;
@@ -1167,6 +1345,9 @@ export default function LoginPage() {
           height: 1.25rem;
           margin-right: 0.5rem;
         }
+        .taskbar-item:nth-child(5) svg {
+          stroke: #ff007a;
+        }
         .system-tray {
           margin-left: auto;
           display: flex;
@@ -1181,7 +1362,7 @@ export default function LoginPage() {
           bottom: 3.5rem;
           left: 0;
           width: 20rem;
-          background: rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.9);
           backdrop-filter: blur(6px);
           border: 1px solid rgba(255,255,255,0.2);
           border-radius: 0.5rem;
@@ -1201,18 +1382,19 @@ export default function LoginPage() {
           display: flex;
           align-items: center;
           padding: 0.5rem 1rem;
-          color: white;
+          color: #000;
           text-decoration: none;
           border-radius: 0.25rem;
           transition: background 0.2s;
         }
         .menu-item:hover {
-          background: rgba(255,255,255,0.1);
+          background: rgba(0,0,0,0.1);
         }
         .menu-item svg {
           width: 1.5rem;
           height: 1.5rem;
           margin-right: 0.75rem;
+          color: #000;
         }
         .logout {
           width: 100%;
@@ -1225,13 +1407,14 @@ export default function LoginPage() {
           width: 100%;
           padding: 0.5rem;
           margin-top: 1rem;
-          background: rgba(255,255,255,0.1);
-          border: 1px solid rgba(255,255,255,0.2);
+          background: #fff;
+          border: 1px solid #ccc;
           border-radius: 0.25rem;
-          color: white;
+          color: #000;
         }
         .validate-button {
           margin-top: 1rem;
+          margin-right: 1rem;
           padding: 0.5rem 1rem;
           background: #2563eb;
           color: white;
@@ -1240,6 +1423,17 @@ export default function LoginPage() {
         }
         .validate-button:hover {
           background: #1d4ed8;
+        }
+        .reset-button {
+          margin-top: 1rem;
+          padding: 0.5rem 1rem;
+          background: #ef4444;
+          color: white;
+          border-radius: 0.25rem;
+          transition: background-color 0.3s;
+        }
+        .reset-button:hover {
+          background: #dc2626;
         }
       `}</style>
     </div>

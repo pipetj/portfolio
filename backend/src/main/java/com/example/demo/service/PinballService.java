@@ -40,29 +40,6 @@ public class PinballService {
         gameState.setBallSpeedX(gameState.getBallSpeedX() * FRICTION);
         gameState.setBallSpeedY(gameState.getBallSpeedY() * FRICTION);
 
-        // Suppression de la téléportation près de l'ouverture
-        // Suppression complète de la logique suivante :
-        /*
-        if (!gameState.isLaunching() && gameState.getBallY() > 630 && gameState.getBallX() > 355) {
-            double targetX = 354;
-            double targetY = 160;
-            double dx = targetX - gameState.getBallX();
-            double dy = targetY - gameState.getBallY();
-            double distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance > 10) {
-                double speed = 300;
-                double moveX = (dx / distance) * speed * TIME_STEP;
-                double moveY = (dy / distance) * speed * TIME_STEP;
-                gameState.setBallX(gameState.getBallX() + moveX);
-                gameState.setBallY(gameState.getBallY() + moveY);
-                gameState.setBallSpeedX(-Math.abs(gameState.getBallSpeedX()) * 0.5);
-                gameState.setBallSpeedY(-Math.abs(gameState.getBallSpeedY()));
-            }
-        }
-        */
-
-        // Gestion de la perte de balle (alignée avec le client)
         if (gameState.getBallY() > 780) {
             if (gameState.getBallX() > 140 && gameState.getBallX() < 260) {
                 gameState.setBallsLeft(gameState.getBallsLeft() - 1);
@@ -72,7 +49,6 @@ public class PinballService {
                     publicResetBall();
                 }
             }
-            // Suppression de la limite forcée : gameState.setBallY(780);
         }
 
         detectAndResolveBallStuck();
@@ -80,6 +56,17 @@ public class PinballService {
 
     private void checkWallCollisions(double newX, double newY) {
         double radius = gameState.getBallRadius();
+
+        // Limiter les déplacements excessifs
+        double maxStep = 20;
+        double dx = newX - gameState.getBallX();
+        double dy = newY - gameState.getBallY();
+        double distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > maxStep) {
+            double scale = maxStep / distance;
+            newX = gameState.getBallX() + dx * scale;
+            newY = gameState.getBallY() + dy * scale;
+        }
 
         if (newX - radius < 10) {
             gameState.setBallX(10 + radius);
@@ -94,47 +81,37 @@ public class PinballService {
             gameState.setBallSpeedY(-gameState.getBallSpeedY() * BOUNCE_DAMPENING);
         }
 
-        // Correction des collisions pour les triangles inclinés
-        // Triangle gauche (x: 55 à 105, y: 670 à 770, pente positive)
-        if (newX >= 55 && newX <= 105 && newY >= 670 && newY <= 770) {
-            // Équation de la droite : y = mx + b, où m est la pente et b l'ordonnée à l'origine
-            double m = (770 - 670) / (105 - 55); // Pente (100 / 50 = 2)
-            double b = 670 - m * 55; // b = y - mx
-            double lineY = m * newX + b; // Position y sur la droite pour le x donné
-            double distanceToWall = Math.abs(newY - lineY);
+        if (newX >= 50 && newX <= 110 && newY >= 670 && newY <= 770) {
+            double m = 2;
+            double b = 670 - m * 50;
+            double lineY = m * newX + b;
+            double distanceToWall = newY - lineY;
 
-            if (distanceToWall < radius) {
-                // Normaliser la direction de la réflexion
-                double normalAngle = Math.atan2(-1, m); // Normale à la pente
+            if (distanceToWall > -radius && distanceToWall < radius) {
+                double normalAngle = Math.atan2(-1, m);
                 double incidentAngle = Math.atan2(gameState.getBallSpeedY(), gameState.getBallSpeedX());
                 double reflectionAngle = 2 * normalAngle - incidentAngle;
-
                 double speed = Math.sqrt(gameState.getBallSpeedX() * gameState.getBallSpeedX() + gameState.getBallSpeedY() * gameState.getBallSpeedY());
                 gameState.setBallSpeedX(Math.cos(reflectionAngle) * speed * BOUNCE_DAMPENING);
                 gameState.setBallSpeedY(Math.sin(reflectionAngle) * speed * BOUNCE_DAMPENING);
-
-                // Repositionner la balle pour éviter qu'elle ne traverse
                 gameState.setBallY(lineY + radius * Math.sin(normalAngle));
                 gameState.setBallX(newX + radius * Math.cos(normalAngle));
             }
         }
 
-        // Triangle droit (x: 295 à 345, y: 670 à 770, pente négative)
-        if (newX >= 295 && newX <= 345 && newY >= 670 && newY <= 770) {
-            double m = (770 - 670) / (295 - 345); // Pente (100 / -50 = -2)
-            double b = 670 - m * 345;
+        if (newX >= 290 && newX <= 350 && newY >= 670 && newY <= 770) {
+            double m = -2;
+            double b = 670 - m * 350;
             double lineY = m * newX + b;
-            double distanceToWall = Math.abs(newY - lineY);
+            double distanceToWall = newY - lineY;
 
-            if (distanceToWall < radius) {
+            if (distanceToWall > -radius && distanceToWall < radius) {
                 double normalAngle = Math.atan2(-1, m);
                 double incidentAngle = Math.atan2(gameState.getBallSpeedY(), gameState.getBallSpeedX());
                 double reflectionAngle = 2 * normalAngle - incidentAngle;
-
                 double speed = Math.sqrt(gameState.getBallSpeedX() * gameState.getBallSpeedX() + gameState.getBallSpeedY() * gameState.getBallSpeedY());
                 gameState.setBallSpeedX(Math.cos(reflectionAngle) * speed * BOUNCE_DAMPENING);
                 gameState.setBallSpeedY(Math.sin(reflectionAngle) * speed * BOUNCE_DAMPENING);
-
                 gameState.setBallY(lineY + radius * Math.sin(normalAngle));
                 gameState.setBallX(newX + radius * Math.cos(normalAngle));
             }
@@ -213,36 +190,61 @@ public class PinballService {
 
                 if (fromLeft || fromRight) {
                     double directionX = fromLeft ? -1 : 1;
-                    gameState.setBallSpeedX(directionX * 400);
-                    gameState.setBallSpeedY(-Math.abs(gameState.getBallSpeedY()) - 200);
+                    gameState.setBallSpeedX(directionX * 150);
+                    gameState.setBallSpeedY(-100);
                     gameState.setScore(gameState.getScore() + 50);
+                    double angle = Math.atan2(gameState.getBallY() - slingshotY[i], gameState.getBallX() - slingshotX[i]);
+                    double minDistance = ballRadius + halfWidth + 5;
+                    gameState.setBallX(slingshotX[i] + Math.cos(angle) * minDistance * directionX);
+                    gameState.setBallY(slingshotY[i] + Math.sin(angle) * minDistance);
                 }
             }
         }
     }
 
     private void checkFlipperCollisions() {
-        if (
-            Math.abs(gameState.getBallX() - gameState.getLeftFlipperX()) < 40 &&
-            Math.abs(gameState.getBallY() - gameState.getLeftFlipperY()) < 20
-        ) {
+        double ballRadius = gameState.getBallRadius();
+        double leftFlipperX = 150;
+        double rightFlipperX = 250;
+        double flipperY = 700;
+        double flipperHalfWidth = 45;
+        double flipperHeight = 30;
+
+        if (Math.abs(gameState.getBallX() - leftFlipperX) < flipperHalfWidth + ballRadius &&
+            Math.abs(gameState.getBallY() - flipperY) < flipperHeight / 2 + ballRadius) {
             if (gameState.getLeftFlipperAngle() == gameState.getLeftFlipperUpAngle()) {
-                double angle = Math.toRadians(-45);
-                double force = 800;
-                gameState.setBallSpeedX(Math.cos(angle) * force);
-                gameState.setBallSpeedY(Math.sin(angle) * force);
+                double flipperAngle = Math.toRadians(-45);
+                double incidentAngle = Math.atan2(gameState.getBallSpeedY(), gameState.getBallSpeedX());
+                double reflectionAngle = 2 * flipperAngle - incidentAngle;
+                double baseForce = 600;
+                double verticalBoost = 800;
+                double force = Math.min(baseForce + verticalBoost * Math.abs(Math.sin(flipperAngle)), 1400);
+                gameState.setBallSpeedX(Math.cos(reflectionAngle) * force * 0.8 * BOUNCE_DAMPENING);
+                gameState.setBallSpeedY(Math.sin(reflectionAngle) * force * 1.2 * BOUNCE_DAMPENING);
+                System.out.println("Left flipper hit: Angle=" + (-45) + "°, Force applied: x=" + (Math.cos(reflectionAngle) * force * 0.8 * BOUNCE_DAMPENING) + ", y=" + (Math.sin(reflectionAngle) * force * 1.2 * BOUNCE_DAMPENING));
+                double angle = Math.atan2(gameState.getBallY() - flipperY, gameState.getBallX() - leftFlipperX);
+                double minDistance = ballRadius + flipperHalfWidth;
+                gameState.setBallX(leftFlipperX + Math.cos(angle) * minDistance);
+                gameState.setBallY(flipperY + Math.sin(angle) * minDistance);
             }
         }
 
-        if (
-            Math.abs(gameState.getBallX() - gameState.getRightFlipperX()) < 40 &&
-            Math.abs(gameState.getBallY() - gameState.getRightFlipperY()) < 20
-        ) {
+        if (Math.abs(gameState.getBallX() - rightFlipperX) < flipperHalfWidth + ballRadius &&
+            Math.abs(gameState.getBallY() - flipperY) < flipperHeight / 2 + ballRadius) {
             if (gameState.getRightFlipperAngle() == gameState.getRightFlipperUpAngle()) {
-                double angle = Math.toRadians(-135);
-                double force = 800;
-                gameState.setBallSpeedX(Math.cos(angle) * force);
-                gameState.setBallSpeedY(Math.sin(angle) * force);
+                double flipperAngle = Math.toRadians(45);
+                double incidentAngle = Math.atan2(gameState.getBallSpeedY(), gameState.getBallSpeedX());
+                double reflectionAngle = 2 * flipperAngle - incidentAngle;
+                double baseForce = 600;
+                double verticalBoost = 800;
+                double force = Math.min(baseForce + verticalBoost * Math.abs(Math.sin(flipperAngle)), 1400);
+                gameState.setBallSpeedX(Math.cos(reflectionAngle) * force * 0.8 * BOUNCE_DAMPENING);
+                gameState.setBallSpeedY(Math.sin(reflectionAngle) * force * 1.2 * BOUNCE_DAMPENING);
+                System.out.println("Right flipper hit: Angle=" + (45) + "°, Force applied: x=" + (Math.cos(reflectionAngle) * force * 0.8 * BOUNCE_DAMPENING) + ", y=" + (Math.sin(reflectionAngle) * force * 1.2 * BOUNCE_DAMPENING));
+                double angle = Math.atan2(gameState.getBallY() - flipperY, gameState.getBallX() - rightFlipperX);
+                double minDistance = ballRadius + flipperHalfWidth;
+                gameState.setBallX(rightFlipperX + Math.cos(angle) * minDistance);
+                gameState.setBallY(flipperY + Math.sin(angle) * minDistance);
             }
         }
     }
@@ -267,39 +269,29 @@ public class PinballService {
     public void moveLeftFlipper(boolean up) {
         double targetAngle = up ? gameState.getLeftFlipperUpAngle() : gameState.getLeftFlipperDownAngle();
         gameState.setLeftFlipperAngle(targetAngle);
-
-        if (up && isNearLeftFlipper()) {
-            double force = 800;
-            double angle = Math.toRadians(-30);
-            gameState.setBallSpeedX(Math.cos(angle) * force);
-            gameState.setBallSpeedY(Math.sin(angle) * force);
-        }
     }
 
     public void moveRightFlipper(boolean up) {
         double targetAngle = up ? gameState.getRightFlipperUpAngle() : gameState.getRightFlipperDownAngle();
         gameState.setRightFlipperAngle(targetAngle);
-
-        if (up && isNearRightFlipper()) {
-            double force = 800;
-            double angle = Math.toRadians(-150);
-            gameState.setBallSpeedX(Math.cos(angle) * force);
-            gameState.setBallSpeedY(Math.sin(angle) * force);
-        }
     }
 
     private boolean isNearLeftFlipper() {
-        return (
-            Math.abs(gameState.getBallX() - gameState.getLeftFlipperX()) < 40 &&
-            Math.abs(gameState.getBallY() - gameState.getLeftFlipperY()) < 20
-        );
+        double ballRadius = gameState.getBallRadius();
+        double distanceX = Math.abs(gameState.getBallX() - 150);
+        double distanceY = Math.abs(gameState.getBallY() - 700);
+        boolean isNear = distanceX < 100 + ballRadius && distanceY < 80 + ballRadius;
+        System.out.println("Left flipper check: Ball pos x=" + gameState.getBallX() + ", y=" + gameState.getBallY() + " | DistanceX=" + distanceX + ", DistanceY=" + distanceY + ", isNear=" + isNear);
+        return isNear;
     }
 
     private boolean isNearRightFlipper() {
-        return (
-            Math.abs(gameState.getBallX() - gameState.getRightFlipperX()) < 40 &&
-            Math.abs(gameState.getBallY() - gameState.getRightFlipperY()) < 20
-        );
+        double ballRadius = gameState.getBallRadius();
+        double distanceX = Math.abs(gameState.getBallX() - 250);
+        double distanceY = Math.abs(gameState.getBallY() - 700);
+        boolean isNear = distanceX < 100 + ballRadius && distanceY < 80 + ballRadius;
+        System.out.println("Right flipper check: Ball pos x=" + gameState.getBallX() + ", y=" + gameState.getBallY() + " | DistanceX=" + distanceX + ", DistanceY=" + distanceY + ", isNear=" + isNear);
+        return isNear;
     }
 
     public void hitTarget() {
@@ -316,10 +308,12 @@ public class PinballService {
     }
 
     public void publicResetBall() {
-        gameState.setBallX(387.5);
-        gameState.setBallY(630);
-        gameState.setBallSpeedX(0);
-        gameState.setBallSpeedY(0);
+        double randomX = 350 + Math.random() * 50;
+        double randomY = 600 + Math.random() * 50;
+        gameState.setBallX(randomX);
+        gameState.setBallY(randomY);
+        gameState.setBallSpeedX((Math.random() - 0.5) * 200);
+        gameState.setBallSpeedY(-Math.random() * 300);
         gameState.setLaunching(true);
         launchForce = 0;
         gameState.setLeftFlipperAngle(gameState.getLeftFlipperDownAngle());
@@ -332,21 +326,34 @@ public class PinballService {
         for (int i = 0; i < targetCooldowns.length; i++) targetCooldowns[i] = 0;
     }
 
+    public void launchAssist() {
+        boolean nearLeft = isNearLeftFlipper();
+        boolean nearRight = isNearRightFlipper();
+        System.out.println("Launch assist triggered: nearLeft=" + nearLeft + ", nearRight=" + nearRight + " | Ball pos: x=" + gameState.getBallX() + ", y=" + gameState.getBallY());
+        if (nearLeft || nearRight) {
+            System.out.println("Teleporting ball to top on server");
+            double targetX = 375;
+            double targetY = 50;
+            double radius = gameState.getBallRadius();
+            if (targetX - radius < 55 || targetX + radius > GAME_WIDTH - 45 || targetY - radius < 10) {
+                targetY = 100;
+            }
+            gameState.setBallX(targetX);
+            gameState.setBallY(targetY);
+            gameState.setBallSpeedX(0);
+            gameState.setBallSpeedY(-1200);
+            gameState.setLaunching(true);
+            launchForce = 0;
+            System.out.println("Teleport completed to x=" + targetX + ", y=" + targetY + ", velocity: 0, -1200");
+        }
+    }
+
     private void detectAndResolveBallStuck() {
         if (Math.abs(gameState.getBallSpeedX()) < 10 && Math.abs(gameState.getBallSpeedY()) < 10) {
             gameState.incrementStuckCounter();
-
-            if (gameState.getStuckCounter() > 180) {
-                double angle = Math.random() * 2 * Math.PI;
-                double force = 150 + Math.random() * 100;
-                gameState.setBallSpeedX(Math.cos(angle) * force);
-                gameState.setBallSpeedY(Math.sin(angle) * force);
+            if (gameState.getStuckCounter() > 60) {
+                publicResetBall();
                 gameState.resetStuckCounter();
-
-                if (gameState.getBallX() > 350 && gameState.getBallY() > 500) {
-                    gameState.setBallSpeedX(-force);
-                    gameState.setBallSpeedY(-force);
-                }
             }
         } else {
             gameState.resetStuckCounter();
