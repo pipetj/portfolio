@@ -557,7 +557,7 @@ export default function PinballGame() {
 
     const connectWebSocket = () => {
       try {
-        const ws = new WebSocket("ws://localhost:8080");
+        const ws = new WebSocket("wss://portfolio-spring-boot-backend.onrender.com/game");
         wsRef.current = ws;
         ws.onopen = () => console.log("WebSocket connected successfully");
         ws.onmessage = (event) => console.log("Message from server:", event.data);

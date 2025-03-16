@@ -29,14 +29,14 @@ export default function LoginPage() {
   const [windows, setWindows] = useState<WindowItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([
     {
-      id: "3763c6c8-c6d1-40cc-be5d-cca06771f0f9", // Exemple d'UUID
+      id: "3763c6c8-c6d1-40cc-be5d-cca06771f0f9",
       title: "CircuitSync",
       description: "Un système de synchronisation de circuits électroniques pour optimiser les performances des microcontrôleurs. Intègre un logiciel de simulation en Python et une interface matérielle basée sur Arduino.",
       created_at: "2024-01-15",
       user_id: "pipetj",
     },
     {
-      id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", // Exemple d'UUID
+      id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       title: "CodeBot",
       description: "Un robot autonome programmé en C++ avec une IA pour la reconnaissance d’obstacles. Utilise des capteurs ultrasoniques et un algorithme de pathfinding inspiré des jeux vidéo.",
       created_at: "2024-06-20",
@@ -85,7 +85,7 @@ export default function LoginPage() {
         })
         .catch(err => {
           console.error("Erreur lors de la récupération des projets :", err);
-          setProjects(projects); // Fallback aux projets statiques
+          setProjects(projects);
         });
     }
   }, [stage]);
@@ -126,7 +126,7 @@ export default function LoginPage() {
   const toggleMinimize = (id: number) => {
     setWindows(prev => {
       const windowToToggle = prev.find(w => w.id === id);
-      if (windowToToggle?.type === 'projets' || windowToToggle?.type === 'pyproject' || windowToToggle?.type === 'robotobject' || windowToClose?.type === 'background' || windowToClose?.type === 'pinball') {
+      if (windowToToggle?.type === 'projets' || windowToToggle?.type === 'pyproject' || windowToToggle?.type === 'robotobject' || windowToToggle?.type === 'background' || windowToToggle?.type === 'pinball') {
         return prev.map(w =>
           w.id === id || w.linkedDetailId === id
             ? { ...w, minimized: !w.minimized }
@@ -140,7 +140,7 @@ export default function LoginPage() {
   const toggleMaximize = (id: number) => {
     setWindows(prev => {
       const windowToToggle = prev.find(w => w.id === id);
-      if (windowToToggle?.type === 'projets' || windowToToggle?.type === 'pyproject' || windowToToggle?.type === 'robotobject' || windowToClose?.type === 'background' || windowToClose?.type === 'pinball') {
+      if (windowToToggle?.type === 'projets' || windowToToggle?.type === 'pyproject' || windowToToggle?.type === 'robotobject' || windowToToggle?.type === 'background' || windowToToggle?.type === 'pinball') {
         return prev.map(w =>
           w.id === id || w.linkedDetailId === id
             ? { ...w, maximized: !w.maximized }
@@ -171,7 +171,7 @@ export default function LoginPage() {
 
   const handleBackgroundReset = () => {
     setBackgroundImage(null);
-    document.cookie = `backgroundImage=; max-age=0`; // Supprime le cookie
+    document.cookie = `backgroundImage=; max-age=0`;
   };
 
   const handleLogout = () => {
@@ -395,7 +395,7 @@ export default function LoginPage() {
             width: 24rem;
             background: rgba(255,255,255,0.1);
             backdrop-filter: blur(6px);
-            border專家: 0.75rem;
+            border-radius: 0.75rem;
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
             border: 1px solid rgba(255,255,255,0.2);
             overflow: hidden;
@@ -725,25 +725,28 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-              <div className="window-content wiki-style">
-                <h1>Mes Projets</h1>
+              <div className="window-content project-window">
+                <h1 className="project-title">Mes Projets</h1>
                 {projects.length > 0 ? (
-                  projects.map((project) => (
-                    <div key={project.id} className="project-entry">
-                      <div className="project-content">
-                        <div className="project-text">
-                          <h2>{project.title}</h2>
-                          <p>{project.description}</p>
-                          <small>Créé le : {new Date(project.created_at).toLocaleDateString()}</small>
+                  <div className="project-grid">
+                    {projects.map((project) => (
+                      <div key={project.id} className="project-card">
+                        <div className="project-card-inner">
+                          <h2 className="project-card-title">{project.title}</h2>
+                          <p className="project-card-desc">{project.description}</p>
+                          <small className="project-card-date">Créé le : {new Date(project.created_at).toLocaleDateString()}</small>
+                          <button
+                            onClick={() => openProjectDetails(project.id, window.id)}
+                            className="project-card-button"
+                          >
+                            Voir les Détails
+                          </button>
                         </div>
-                        <button onClick={() => openProjectDetails(project.id, window.id)} className="details-button">
-                          Voir les Détails
-                        </button>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 ) : (
-                  <p>Aucun projet disponible pour le moment.</p>
+                  <p className="no-projects">Aucun projet disponible pour le moment.</p>
                 )}
               </div>
             </div>
@@ -896,7 +899,7 @@ export default function LoginPage() {
             </div>
           ) : window.type.startsWith('projet-') ? (
             (() => {
-              const projectId = window.type.split('projet-')[1]; // Support pour UUID complet
+              const projectId = window.type.split('projet-')[1];
               const project = projects.find(p => p.id === projectId);
 
               return (
@@ -1232,63 +1235,73 @@ export default function LoginPage() {
           color: #000;
           background: #f0f0f0;
         }
-        .wiki-style {
-          background: #fff;
-          color: #000;
-          border: 1px solid #ccc;
-          border-radius: 0.25rem;
-          padding: 1.25rem;
-          min-height: 100%;
+        .project-window {
+          background: linear-gradient(135deg, #1e3a8a, #4f46e5);
+          padding: 2rem;
+          color: white;
         }
-        .wiki-style h1 {
-          font-size: 1.5rem;
-          color: #000;
+        .project-title {
+          font-size: 2rem;
           font-weight: 700;
-          margin-bottom: 1rem;
-          border-bottom: 1px solid #ccc;
-          padding-bottom: 0.5rem;
+          color: #fff;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          margin-bottom: 2rem;
+          text-align: center;
         }
-        .project-entry {
-          margin-bottom: 1.5rem;
-          padding-bottom: 1.5rem;
-          border-bottom: 1px solid #ccc;
+        .project-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          gap: 1.5rem;
         }
-        .project-entry:last-child {
-          border-bottom: none;
+        .project-card {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 0.5rem;
+          overflow: hidden;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+          transition: transform 0.3s, box-shadow 0.3s;
         }
-        .project-content {
+        .project-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+        .project-card-inner {
+          padding: 1.5rem;
           display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 1rem;
+          flex-direction: column;
+          gap: 0.75rem;
         }
-        .project-text {
-          flex: 1;
-        }
-        .project-entry h2 {
-          font-size: 1.25rem;
-          color: #2563eb;
+        .project-card-title {
+          font-size: 1.5rem;
           font-weight: 600;
+          color: #60a5fa;
           margin-bottom: 0.5rem;
         }
-        .project-entry p {
-          color: #000;
-          margin-bottom: 0.25rem;
+        .project-card-desc {
+          font-size: 1rem;
+          color: #e0e0e0;
+          line-height: 1.5;
         }
-        .project-entry small {
-          color: #666;
-          font-size: 0.75rem;
+        .project-card-date {
+          font-size: 0.875rem;
+          color: #bfdbfe;
+          margin-top: 0.5rem;
         }
-        .details-button {
+        .project-card-button {
+          margin-top: 1rem;
           padding: 0.5rem 1rem;
-          background: #2563eb;
+          background: linear-gradient(to right, #2563eb, #4f46e5);
           color: white;
           border-radius: 0.25rem;
-          transition: background-color 0.3s;
-          white-space: nowrap;
+          transition: background 0.3s;
+          text-align: center;
         }
-        .details-button:hover {
-          background: #1d4ed8;
+        .project-card-button:hover {
+          background: linear-gradient(to right, #1d4ed8, #4338ca);
+        }
+        .no-projects {
+          font-size: 1.25rem;
+          color: #bfdbfe;
+          text-align: center;
         }
         .taskbar {
           position: fixed;
@@ -1344,9 +1357,6 @@ export default function LoginPage() {
           width: 1.25rem;
           height: 1.25rem;
           margin-right: 0.5rem;
-        }
-        .taskbar-item:nth-child(5) svg {
-          stroke: #ff007a;
         }
         .system-tray {
           margin-left: auto;
