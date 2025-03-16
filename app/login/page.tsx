@@ -19,7 +19,6 @@ interface Project {
   id: string; // UUID format supporté
   title: string;
   description: string;
-  created_at: string;
   user_id: string;
 }
 
@@ -29,17 +28,34 @@ export default function LoginPage() {
   const [windows, setWindows] = useState<WindowItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([
     {
-      id: "3763c6c8-c6d1-40cc-be5d-cca06771f0f9",
-      title: "CircuitSync",
-      description: "Un système de synchronisation de circuits électroniques pour optimiser les performances des microcontrôleurs. Intègre un logiciel de simulation en Python et une interface matérielle basée sur Arduino.",
-      created_at: "2024-01-15",
+      id: "a36252be-5d6c-445e-8b3f-b175e3465348",
+      title: "Pixel Art",
+      description: "Ce projet a été réalisé au tout début de mon BTS en une quinzaine d’heures et servait d’initiation au code. Le principe était d’utiliser la librairie Python OpenCV pour afficher un texte en style pixel art saisi par un utilisateur. Cela permettait de comprendre les bases de la programmation (variables, conditions, boucles, frameworks). J’ai reproduit ce projet dans mon portfolio en l’étoffant : personnalisation de la couleur, changement de message, et ajout d’un mini-jeu Snake pour un style rétro arcade. En conclusion, ce projet est la base de tous les suivants.",
       user_id: "pipetj",
     },
     {
-      id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      title: "CodeBot",
-      description: "Un robot autonome programmé en C++ avec une IA pour la reconnaissance d’obstacles. Utilise des capteurs ultrasoniques et un algorithme de pathfinding inspiré des jeux vidéo.",
-      created_at: "2024-06-20",
+      id: "4197520e-c9ed-4d2c-8ac1-54db51c40327",
+      title: "Programmation embarqué",
+      description: "Ce projet de fin de première année de BTS, réalisé en groupe sur 4 mois (100 heures), consistait à contrôler un robot attaché à une Arduino via un site web que j’ai développé. Une API envoyait des requêtes AJAX pour exécuter les déplacements, et un capteur ultrasonique permettait d’esquiver les obstacles. J’ai reproduit ce projet en 3D dans mon portfolio pour refléter ses capacités.",
+      user_id: "pipetj",
+    },
+ 
+    {
+      id: "e317f069-708e-4c38-81bd-96dce6b36fde",
+      title: "Développement Mobile",
+      description: "Initiation au développement Android et Java, réalisée en binôme en 20 heures. L’application, axée sur le développement durable, permet de suivre sa consommation énergétique, la comparer à la moyenne française, et fixer des objectifs. Ce projet a mis en pratique la programmation orientée objet et élargi mes compétences hors du web.",
+      user_id: "pipetj",
+    },
+    {
+      id: "3763c6c8-c6d1-40cc-be5d-cca06771f0f9",
+      title: "Projet Blog",
+      description: "Initiation à React et Next.js, réalisée en groupe en 30 heures. Ce site, connecté à une base Prisma, permettait connexion, commentaires, quiz, et gestion de rôles pour éditer/supprimer des données. Ce projet a ouvert de nouvelles perspectives grâce aux frameworks web. Une démonstration est disponible.",
+      user_id: "pipetj",
+    },
+    {
+      id: "bdfee76e-6cc4-421d-b338-be2b55d175e4",
+      title: "Escape Game",
+      description: "Projet de fin de semestre 5 en BUT MMI, réalisé en groupe de 5 sur 4 mois. Nous avons conçu un escape game jouable sur navigateur (scénario, énigmes, développement) pour mobile, utilisant gyroscope, micro, caméra et accéléromètre. Quelques images illustrent mes pages.",
       user_id: "pipetj",
     },
   ]);
@@ -666,7 +682,7 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
             </svg>
           </div>
-          <span className="icon-label">PyProject</span>
+          <span className="icon-label">Pixel Art</span>
         </div>
 
         <div className="icon-container" onClick={(e) => handleIconClick(e, 'robotobject')}>
@@ -675,7 +691,7 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 18v-2a4 4 0 00-8 0v2m-4-6h16M6 8h12a2 2 0 002-2V4a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z" />
             </svg>
           </div>
-          <span className="icon-label">RobotObject</span>
+          <span className="icon-label">Smartbot 3D</span>
         </div>
 
         <div className="icon-container" onClick={(e) => handleIconClick(e, 'pinball')}>
@@ -734,7 +750,7 @@ export default function LoginPage() {
                         <div className="project-card-inner">
                           <h2 className="project-card-title">{project.title}</h2>
                           <p className="project-card-desc">{project.description}</p>
-                          <small className="project-card-date">Créé le : {new Date(project.created_at).toLocaleDateString()}</small>
+          
                           <button
                             onClick={() => openProjectDetails(project.id, window.id)}
                             className="project-card-button"
@@ -905,7 +921,7 @@ export default function LoginPage() {
               return (
                 <div
                   key={window.id}
-                  className={`window detail-window tech-style ${windows.find(w => w.id === window.linkedDetailId)?.maximized ? 'maximized' : ''}`}
+                  className={`window detail-window ${windows.find(w => w.id === window.linkedDetailId)?.maximized ? 'maximized' : ''}`}
                   style={!window.maximized ? { left: `${window.position?.x}px`, top: `${window.position?.y}px` } : undefined}
                 >
                   <div className="window-header" onMouseDown={(e) => startDragging(e, window.id)}>
@@ -918,30 +934,49 @@ export default function LoginPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="window-content tech-content">
+                  <div className="window-content project-window">
                     <h2>{project?.title || 'Titre non disponible'}</h2>
-                    <p>{project?.description || 'Description non disponible'}</p>
+
+                    {/* Pixel Art */}
+                    {project?.id === "a36252be-5d6c-445e-8b3f-b175e3465348" && (
+                      <div>
+                        <p>Ce projet a été réalisé au tout début de mon BTS en une quinzaine d’heures et servait donc d’initiation au code. Le principe était d’utiliser la librairie Python OpenCV pour afficher un texte en façon pixel art qu’un utilisateur avait saisi. Cela permettait de comprendre le fonctionnement de toutes les bases de la programmation (variables, conditions, boucles, framework). J’ai reproduit ce projet dans mon portfolio en l’étoffant un peu en permettant la personnalisation de la couleur, la possibilité de changer son message et l’ajout d’un mini-jeu Snake pour avoir un style rétro arcade qui correspond bien à ce projet. En conclusion, ce projet est important car il est la base de tous les suivants.</p>
+                      </div>
+                    )}
+
+                    {/* SmartBot */}
+                    {project?.id === "4197520e-c9ed-4d2c-8ac1-54db51c40327" && (
+                      <div>
+                        <p>Cette section comporte deux projets en un car ils abordent le même thème. Le premier est le projet SmartBot, qui était le projet de fin de première année de mon BTS. C’est un projet qui a duré 4 mois pour environ 100 heures de travail et c’était aussi notre premier projet en groupe. Le but était de tout mettre en œuvre pour pouvoir contrôler un robot attaché à une Arduino avec l’aide d’un site web dont j’avais la tâche. Il y avait donc besoin de créer une API pour envoyer des requêtes AJAX permettant d’exécuter les codes de déplacements. Le robot était également équipé d’un capteur à ultrason lui permettant de détecter et esquiver des obstacles. J’ai reproduit en 3D sur mon portfolio ce projet afin de reproduire le mieux possible ce dont il était capable.
+
+                          Le second projet est une évolution du premier projet car maintenant on devait contrôler un bras robot en ayant les mêmes contraintes mais cette fois tout était hébergé sur un Raspberry Pi. Ce projet a duré 6 mois pour 200 heures de travail. En conclusion, ces deux projets ont été le point de départ des projets collaboratifs et le condensé de mes compétences acquises en BTS. <br /> Voici une vidéo d’illustration de mon projet.
+
+                          </p>
+                      </div>
+                    )}
+
+                    {/* Développement Mobile */}
+                    {project?.id === "e317f069-708e-4c38-81bd-96dce6b36fde" && (
+                      <div>
+                        <p>Ce projet est une initiation au développement mobile Android et Java. Il a été réalisé en binôme en une vingtaine d’heures. Le but était de créer une application sur le thème du développement durable permettant de manipuler des données. Nous avons alors fait une application permettant de rentrer sa consommation énergétique et voir là où on se situe sur la moyenne française, ou on peut également se fixer des objectifs de consommation pour le prochain relevé. Ce projet a permis de mettre en pratique la programmation orientée objet et de me sortir du cadre du développement web.</p>
+                      </div>
+                    )}
+
+                    {/* Projet Blog */}
                     {project?.id === "3763c6c8-c6d1-40cc-be5d-cca06771f0f9" && (
-                      <div className="tech-details">
-                        <h3>Technologies utilisées :</h3>
-                        <ul>
-                          <li>Python - Simulation de circuits</li>
-                          <li>Arduino - Contrôle matériel</li>
-                          <li>I2C - Communication inter-composants</li>
-                        </ul>
+                      <div>
+                        <p>Ce projet est une initiation à React et Next. Il a été réalisé en groupe en une trentaine d’heures. Le principe était de faire un site sur un thème au choix lié à une base de données Prisma. Les utilisateurs pouvaient se connecter, laisser des commentaires, jouer à des quiz. On avait également un système de rôles permettant d’éditer ou supprimer des données. Ce projet a apporté une nouvelle dimension dans mes projets futurs car je n’avais jamais utilisé de framework web, cela m’a donc permis d’étendre mes possibilités et mes compétences. Voici une démonstration de notre blog :</p>
                       </div>
                     )}
-                    {project?.id === "a1b2c3d4-e5f6-7890-abcd-ef1234567890" && (
-                      <div className="tech-details">
-                        <h3>Technologies utilisées :</h3>
-                        <ul>
-                          <li>C++ - Programmation embarquée</li>
-                          <li>Capteurs ultrasoniques - Détection</li>
-                          <li>Algorithme A* - Pathfinding</li>
-                        </ul>
+
+                    {/* Escape Game */}
+                    {project?.id === "bdfee76e-6cc4-421d-b338-be2b55d175e4" && (
+                      <div>
+                        <p>Ce projet est pour l’heure celui le plus avancé. C’était le projet de fin de semestre 5 en BUT MMI. Il a été réalisé sur l’espace de 4 mois en groupe de 5 et le concept était de concevoir entièrement un escape game jouable sur un navigateur, c’est-à-dire le scénario, les énigmes et le développement. La seule contrainte était de le développer pour un format téléphone et donc il devait pouvoir utiliser les capteurs de ce dernier (gyroscope, micro, caméra, accéléromètre…). Voici quelques images de mes pages réalisées :
+
+                         En conclusion, ce projet abordait à la fois le développement web et mobile et cela permettait de découvrir les interactions avec le téléphone.</p>
                       </div>
                     )}
-                    <div className="circuit-overlay"></div>
                   </div>
                 </div>
               );
@@ -1128,60 +1163,6 @@ export default function LoginPage() {
         .detail-window {
           z-index: 11;
         }
-        .tech-style {
-          background: #1a1a1a;
-          font-family: 'Roboto Mono', monospace;
-          border: 1px solid #00ffcc;
-          box-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
-        }
-        .tech-content {
-          padding: 2rem;
-          position: relative;
-          color: #e0e0e0;
-          background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
-        }
-        .tech-content h2 {
-          font-size: 2rem;
-          color: #00ffcc;
-          text-shadow: 0 0 5px #00ffcc;
-          margin-bottom: 1rem;
-        }
-        .tech-content p {
-          font-size: 1rem;
-          color: #e0e0e0;
-          margin-bottom: 2rem;
-        }
-        .tech-details {
-          margin-top: 1rem;
-        }
-        .tech-details h3 {
-          color: #ff007a;
-          font-size: 1.25rem;
-          margin-bottom: 0.5rem;
-        }
-        .tech-details ul {
-          list-style: none;
-          padding: 0;
-        }
-        .tech-details li {
-          color: #e0e0e0;
-          margin-bottom: 0.5rem;
-          position: relative;
-          padding-left: 1.5rem;
-        }
-        .tech-details li:before {
-          content: '>';
-          color: #00ffcc;
-          position: absolute;
-          left: 0;
-        }
-        .circuit-overlay {
-          position: absolute;
-          inset: 0;
-          background: url('https://via.placeholder.com/800x600?text=Circuit+Pattern') center/cover;
-          opacity: 0.05;
-          z-index: -1;
-        }
         .window-header {
           background: #e1e1e1;
           padding: 0.5rem 0.75rem;
@@ -1239,6 +1220,16 @@ export default function LoginPage() {
           background: linear-gradient(135deg, #1e3a8a, #4f46e5);
           padding: 2rem;
           color: white;
+        }
+        .project-window h2 {
+          font-size: 2rem;
+          font-weight: 700;
+          margin-bottom: 1rem;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .project-window p {
+          font-size: 1rem;
+          line-height: 1.5;
         }
         .project-title {
           font-size: 2rem;
