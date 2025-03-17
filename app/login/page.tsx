@@ -16,7 +16,7 @@ interface WindowItem {
 }
 
 interface Project {
-  id: string; // UUID format supporté
+  id: string;
   title: string;
   description: string;
   user_id: string;
@@ -39,7 +39,6 @@ export default function LoginPage() {
       description: "Ce projet de fin de première année de BTS, réalisé en groupe sur 4 mois (100 heures), consistait à contrôler un robot attaché à une Arduino via un site web que j’ai développé. Une API envoyait des requêtes AJAX pour exécuter les déplacements, et un capteur ultrasonique permettait d’esquiver les obstacles. J’ai reproduit ce projet en 3D dans mon portfolio pour refléter ses capacités.",
       user_id: "pipetj",
     },
- 
     {
       id: "e317f069-708e-4c38-81bd-96dce6b36fde",
       title: "Développement Mobile",
@@ -750,7 +749,6 @@ export default function LoginPage() {
                         <div className="project-card-inner">
                           <h2 className="project-card-title">{project.title}</h2>
                           <p className="project-card-desc">{project.description}</p>
-          
                           <button
                             onClick={() => openProjectDetails(project.id, window.id)}
                             className="project-card-button"
@@ -921,7 +919,7 @@ export default function LoginPage() {
               return (
                 <div
                   key={window.id}
-                  className={`window detail-window ${windows.find(w => w.id === window.linkedDetailId)?.maximized ? 'maximized' : ''}`}
+                  className="window detail-window"
                   style={!window.maximized ? { left: `${window.position?.x}px`, top: `${window.position?.y}px` } : undefined}
                 >
                   <div className="window-header" onMouseDown={(e) => startDragging(e, window.id)}>
@@ -947,11 +945,22 @@ export default function LoginPage() {
                     {/* SmartBot */}
                     {project?.id === "4197520e-c9ed-4d2c-8ac1-54db51c40327" && (
                       <div>
-                        <p>Cette section comporte deux projets en un car ils abordent le même thème. Le premier est le projet SmartBot, qui était le projet de fin de première année de mon BTS. C’est un projet qui a duré 4 mois pour environ 100 heures de travail et c’était aussi notre premier projet en groupe. Le but était de tout mettre en œuvre pour pouvoir contrôler un robot attaché à une Arduino avec l’aide d’un site web dont j’avais la tâche. Il y avait donc besoin de créer une API pour envoyer des requêtes AJAX permettant d’exécuter les codes de déplacements. Le robot était également équipé d’un capteur à ultrason lui permettant de détecter et esquiver des obstacles. J’ai reproduit en 3D sur mon portfolio ce projet afin de reproduire le mieux possible ce dont il était capable.
-
-                          Le second projet est une évolution du premier projet car maintenant on devait contrôler un bras robot en ayant les mêmes contraintes mais cette fois tout était hébergé sur un Raspberry Pi. Ce projet a duré 6 mois pour 200 heures de travail. En conclusion, ces deux projets ont été le point de départ des projets collaboratifs et le condensé de mes compétences acquises en BTS. <br /> Voici une vidéo d’illustration de mon projet.
-
-                          </p>
+                        <p>
+                          Cette section comporte deux projets en un car ils abordent le même thème. Le premier est le projet SmartBot, qui était le projet de fin de première année de mon BTS. C’est un projet qui a duré 4 mois pour environ 100 heures de travail et c’était aussi notre premier projet en groupe. Le but était de tout mettre en œuvre pour pouvoir contrôler un robot attaché à une Arduino avec l’aide d’un site web dont j’avais la tâche. Il y avait donc besoin de créer une API pour envoyer des requêtes AJAX permettant d’exécuter les codes de déplacements. Le robot était également équipé d’un capteur à ultrason lui permettant de détecter et esquiver des obstacles. J’ai reproduit en 3D sur mon portfolio ce projet afin de reproduire le mieux possible ce dont il était capable.
+                          <br /><br />
+                          Le second projet est une évolution du premier projet car maintenant on devait contrôler un bras robot en ayant les mêmes contraintes mais cette fois tout était hébergé sur un Raspberry Pi. Ce projet a duré 6 mois pour 200 heures de travail. En conclusion, ces deux projets ont été le point de départ des projets collaboratifs et le condensé de mes compétences acquises en BTS.
+                          <br /><br />
+                          Voici une vidéo d’illustration de mon projet :
+                        </p>
+                        <div className="video-container">
+                          <iframe
+                            src="https://www.youtube.com/embed/mXhjNqzCa4U"
+                            title="Vidéo du projet SmartBot"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          ></iframe>
+                        </div>
                       </div>
                     )}
 
@@ -965,16 +974,26 @@ export default function LoginPage() {
                     {/* Projet Blog */}
                     {project?.id === "3763c6c8-c6d1-40cc-be5d-cca06771f0f9" && (
                       <div>
-                        <p>Ce projet est une initiation à React et Next. Il a été réalisé en groupe en une trentaine d’heures. Le principe était de faire un site sur un thème au choix lié à une base de données Prisma. Les utilisateurs pouvaient se connecter, laisser des commentaires, jouer à des quiz. On avait également un système de rôles permettant d’éditer ou supprimer des données. Ce projet a apporté une nouvelle dimension dans mes projets futurs car je n’avais jamais utilisé de framework web, cela m’a donc permis d’étendre mes possibilités et mes compétences. Voici une démonstration de notre blog :</p>
+                        <p>Ce projet est une initiation à React et Next. Il a été réalisé en groupe en une trentaine d’heures. Le principe était de faire un site sur un thème au choix lié à une base de données Prisma. Les utilisateurs pouvaient se connecter, laisser des commentaires, jouer à des quiz. On avait également un système de rôles permettant d’éditer ou supprimer des données. Ce projet a apporté une nouvelle dimension dans mes projets futurs car je n’avais jamais utilisé de framework web, cela m’a donc permis d’étendre mes possibilités et mes compétences. </p>
                       </div>
                     )}
 
                     {/* Escape Game */}
                     {project?.id === "bdfee76e-6cc4-421d-b338-be2b55d175e4" && (
                       <div>
-                        <p>Ce projet est pour l’heure celui le plus avancé. C’était le projet de fin de semestre 5 en BUT MMI. Il a été réalisé sur l’espace de 4 mois en groupe de 5 et le concept était de concevoir entièrement un escape game jouable sur un navigateur, c’est-à-dire le scénario, les énigmes et le développement. La seule contrainte était de le développer pour un format téléphone et donc il devait pouvoir utiliser les capteurs de ce dernier (gyroscope, micro, caméra, accéléromètre…). Voici quelques images de mes pages réalisées :
-
-                         En conclusion, ce projet abordait à la fois le développement web et mobile et cela permettait de découvrir les interactions avec le téléphone.</p>
+                        <p>
+                          Ce projet est pour l’heure celui le plus avancé. C’était le projet de fin de semestre 5 en BUT MMI. Il a été réalisé sur l’espace de 4 mois en groupe de 5 et le concept était de concevoir entièrement un escape game jouable sur un navigateur, c’est-à-dire le scénario, les énigmes et le développement. La seule contrainte était de le développer pour un format téléphone et donc il devait pouvoir utiliser les capteurs de ce dernier (gyroscope, micro, caméra, accéléromètre…). 
+                          <br /><br />
+                          En conclusion, ce projet abordait à la fois le développement web et mobile et cela permettait de découvrir les interactions avec le téléphone. Voici notre projet ici (sans la base de données et les ressources) :{' '}
+                          <a
+                            href="https://escapegamesae501.netlify.app/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="project-link"
+                          >
+                            https://escapegamesae501.netlify.app/
+                          </a>
+                        </p>
                       </div>
                     )}
                   </div>
@@ -1163,6 +1182,14 @@ export default function LoginPage() {
         .detail-window {
           z-index: 11;
         }
+        .project-link {
+          color: #60a5fa;
+          text-decoration: underline;
+          transition: color 0.3s;
+        }
+        .project-link:hover {
+          color: #2563eb;
+        }
         .window-header {
           background: #e1e1e1;
           padding: 0.5rem 0.75rem;
@@ -1238,6 +1265,21 @@ export default function LoginPage() {
           text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
           margin-bottom: 2rem;
           text-align: center;
+        }
+        .video-container {
+          position: relative;
+          width: 100%;
+          padding-top: 56.25%;
+          margin-top: 1rem;
+        }
+        .video-container iframe {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          border-radius: 0.5rem;
+          box-shadow: 0 0.5vw 1vw rgba(0, 0, 0, 0.2);
         }
         .project-grid {
           display: grid;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -368,6 +368,33 @@ function SceneContent() {
 }
 
 export default function RobotScene() {
+  const [showDialog, setShowDialog] = useState(true);
+
+  const dialogStyle = {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    background: "white",
+    padding: "20px",
+    borderRadius: "8px",
+    boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+    zIndex: 1000,
+    maxWidth: "400px",
+    textAlign: "center",
+  };
+
+  const buttonStyle = {
+    marginTop: "20px",
+    padding: "10px 20px",
+    background: "#4A90E2",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: "16px",
+  };
+
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
       <Canvas
@@ -377,6 +404,21 @@ export default function RobotScene() {
       >
         <SceneContent />
       </Canvas>
+
+      {showDialog && (
+        <div style={dialogStyle}>
+          <h2>Bienvenue !</h2>
+          <p>
+            Voici une reconstitution d’un projet de BTS. Vous pouvez déplacer le robot avec les flèches de ton clavier. Le capteur à ultrason est la face avant !
+          </p>
+          <button
+            style={buttonStyle}
+            onClick={() => setShowDialog(false)}
+          >
+            D'accord
+          </button>
+        </div>
+      )}
     </div>
   );
 }
